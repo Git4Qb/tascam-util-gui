@@ -1,0 +1,136 @@
+DEVICE ID 0644:804e on Bus 003 Address 035 =================
+ bLength                :   0x12 (18 bytes)
+ bDescriptorType        :    0x1 Device
+ bcdUSB                 :  0x200 USB 2.0
+ bDeviceClass           :   0xef Miscellaneous
+ bDeviceSubClass        :    0x2
+ bDeviceProtocol        :    0x1
+ bMaxPacketSize0        :   0x40 (64 bytes)
+ idVendor               : 0x0644
+ idProduct              : 0x804e
+ bcdDevice              :  0x101 Device 1.01
+ iManufacturer          :    0x1 TEAC Corporation
+ iProduct               :    0x2 US-4x4
+ iSerialNumber          :    0x0 
+ bNumConfigurations     :    0x1
+  CONFIGURATION 1: 80 mA ===================================
+   bLength              :    0x9 (9 bytes)
+   bDescriptorType      :    0x2 Configuration
+   wTotalLength         :  0x179 (377 bytes)
+   bNumInterfaces       :    0x5
+   bConfigurationValue  :    0x1
+   iConfiguration       :    0x0 
+   bmAttributes         :   0xc0 Self Powered
+   bMaxPower            :   0x28 (80 mA)
+    INTERFACE 0: Audio =====================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x0
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x0
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x1
+     bInterfaceProtocol :   0x20
+     iInterface         :    0x4 US-4x4
+    INTERFACE 1: Audio =====================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x1
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x0
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x2
+     bInterfaceProtocol :   0x20
+     iInterface         :    0x5 US-4x4
+    INTERFACE 1, 1: Audio ==================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x1
+     bAlternateSetting  :    0x1
+     bNumEndpoints      :    0x2
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x2
+     bInterfaceProtocol :   0x20
+     iInterface         :    0x5 US-4x4
+      ENDPOINT 0x1: Isochronous OUT ========================
+       bLength          :    0x7 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :    0x1 OUT
+       bmAttributes     :    0x5 Isochronous
+       wMaxPacketSize   :   0xd0 (208 bytes)
+       bInterval        :    0x1
+      ENDPOINT 0x81: Isochronous IN ========================
+       bLength          :    0x7 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :   0x81 IN
+       bmAttributes     :   0x11 Isochronous
+       wMaxPacketSize   :    0x4 (4 bytes)
+       bInterval        :    0x8
+    INTERFACE 2: Audio =====================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x2
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x0
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x2
+     bInterfaceProtocol :   0x20
+     iInterface         :    0x8 US-4x4
+    INTERFACE 2, 1: Audio ==================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x2
+     bAlternateSetting  :    0x1
+     bNumEndpoints      :    0x1
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x2
+     bInterfaceProtocol :   0x20
+     iInterface         :    0x8 US-4x4
+      ENDPOINT 0x83: Isochronous IN ========================
+       bLength          :    0x7 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :   0x83 IN
+       bmAttributes     :    0x5 Isochronous
+       wMaxPacketSize   :   0xd0 (208 bytes)
+       bInterval        :    0x1
+    INTERFACE 3: Audio =====================================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x3
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x2
+     bInterfaceClass    :    0x1 Audio
+     bInterfaceSubClass :    0x3
+     bInterfaceProtocol :    0x0
+     iInterface         :    0x0 
+      ENDPOINT 0x4: Bulk OUT ===============================
+       bLength          :    0x9 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :    0x4 OUT
+       bmAttributes     :    0x2 Bulk
+       wMaxPacketSize   :  0x200 (512 bytes)
+       bInterval        :    0x0
+      ENDPOINT 0x84: Bulk IN ===============================
+       bLength          :    0x9 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :   0x84 IN
+       bmAttributes     :    0x2 Bulk
+       wMaxPacketSize   :  0x200 (512 bytes)
+       bInterval        :    0x0
+    INTERFACE 4: Human Interface Device ====================
+     bLength            :    0x9 (9 bytes)
+     bDescriptorType    :    0x4 Interface
+     bInterfaceNumber   :    0x4
+     bAlternateSetting  :    0x0
+     bNumEndpoints      :    0x1
+     bInterfaceClass    :    0x3 Human Interface Device
+     bInterfaceSubClass :    0x0
+     bInterfaceProtocol :    0x0
+     iInterface         :    0x7 US-4x4
+      ENDPOINT 0x85: Interrupt IN ==========================
+       bLength          :    0x7 (7 bytes)
+       bDescriptorType  :    0x5 Endpoint
+       bEndpointAddress :   0x85 IN
+       bmAttributes     :    0x3 Interrupt
+       wMaxPacketSize   :    0x8 (8 bytes)
+       bInterval        :    0x9

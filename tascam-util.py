@@ -1,7 +1,5 @@
 import usb.core
 import usb.util
-import sys
-import os
 import argparse
 
 from route import RouteCommand
@@ -103,7 +101,7 @@ def main(arguments):
     device_config = device.get_active_configuration()
     control_device(device, device_config)
     print("Got control of device")
-     
+
     command.execute(device)
 
     release_device(device, device_config)
