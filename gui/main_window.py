@@ -1,4 +1,6 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -8,19 +10,18 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QCheckBox,
 )
 
-from gui.tabs import RoutingTab, MonitoringTab, InputsTab
+from gui.tabs import InputsTab, MonitoringTab, RoutingTab
 
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("TASCAMUS 4x4")
-        self.resize(680, 720)
+        self.resize(900, 720)
 
-        root = QWidget()
+        root = QWidget(self)
         self.setCentralWidget(root)
 
         main_layout = QHBoxLayout(root)
@@ -28,60 +29,74 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(12)
 
         # LEFT COLUMN ---------------------------------------------------------
-        left_col = QWidget()
+        left_col = QWidget(self)
         left_layout = QVBoxLayout(left_col)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(10)
 
-        self.tabs = QTabWidget()
+        self.tabs = QTabWidget(left_col)
+        tabbar = self.tabs.tabBar()
+        tabbar.setExpanding(True)
+        self.tabs.setUsesScrollButtons(False)
+        self.tabs.setElideMode(Qt.TextElideMode.ElideNone)
+
         self.tabs.addTab(RoutingTab(), "Routing")
         self.tabs.addTab(MonitoringTab(), "Monitoring")
         self.tabs.addTab(InputsTab(), "Inputs")
 
-        # PowerSave panel
-        self.powersave_panel = QFrame()
-        ps_layout = QVBoxLayout(self.powersave_panel)
-        ps_layout.setContentsMargins(8, 8, 8, 8)
-        ps_layout.setSpacing(6)
+        sep = QFrame(left_col)
+        sep.setProperty("role", "sectionSeparator")
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
 
-        ps_layout.addWidget(QLabel("PowerSave"))
+        self.powersave_panel = QFrame(left_col)
+        ps_layout = QHBoxLayout(self.powersave_panel)
+        ps_layout.setContentsMargins(8, 6, 8, 6)
+        ps_layout.setSpacing(8)
 
-        self.powersave_toggle = QCheckBox("Enabled")
+        ps_title = QLabel("PowerSave", self.powersave_panel)
+        ps_title.setProperty("role", "heading")
+
+        ps_enabled = QLabel("Enabled", self.powersave_panel)
+        ps_enabled.setProperty("role", "heading")
+
+        self.powersave_toggle = QCheckBox(self.powersave_panel)
         self.powersave_toggle.setChecked(False)
+
+        ps_layout.addWidget(ps_title)
+        ps_layout.addStretch(1)
+        ps_layout.addWidget(ps_enabled)
         ps_layout.addWidget(self.powersave_toggle)
 
         left_layout.addWidget(self.tabs, 1)
+        left_layout.addWidget(sep, 0)
         left_layout.addWidget(self.powersave_panel, 0)
 
         # RIGHT COLUMN --------------------------------------------------------
-        right_col = QWidget()
+        right_col = QWidget(self)
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
 
-        # Planned/future state
-        planned_label = QLabel("Planned changes")
-        self.planned_text = QTextEdit()
+        planned_label = QLabel("Planned changes", right_col)
+        self.planned_text = QTextEdit(right_col)
         self.planned_text.setReadOnly(True)
         self.planned_text.setPlainText("Changes you want to make:")
 
-        # Current real device state
-        current_label = QLabel("Current device state")
-        self.current_state_text = QTextEdit()
+        current_label = QLabel("Current device state", right_col)
+        self.current_state_text = QTextEdit(right_col)
         self.current_state_text.setReadOnly(True)
         self.current_state_text.setPlainText("Not loaded yet.")
 
-        # Buttons
-        buttons_row = QWidget()
+        buttons_row = QWidget(right_col)
         buttons_layout = QHBoxLayout(buttons_row)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         buttons_layout.setSpacing(8)
 
-        self.plan_btn = QPushButton("Plan to apply")
-        self.confirm_btn = QPushButton("Confirm changes")
-        self.cancel_btn = QPushButton("Cancel")
+        self.plan_btn = QPushButton("Plan to apply", buttons_row)
+        self.confirm_btn = QPushButton("Confirm changes", buttons_row)
+        self.cancel_btn = QPushButton("Cancel", buttons_row)
 
-        # initial state
         self.confirm_btn.setEnabled(False)
         self.cancel_btn.setEnabled(False)
 

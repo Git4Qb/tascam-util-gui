@@ -2,6 +2,11 @@ QTabWidget::pane {
   border: 0;
 }
 
+QTabBar::tab {
+  padding: 8px 12px;
+  min-height: 30px;
+}
+
 QLabel[role="heading"] {
   font-size: 18px;
   font-weight: 600;
@@ -11,4 +16,8 @@ QFrame[role="card"] {
   border: 1px solid #b8b8b8;
   border-radius: 10px;
   background: #f7f7f7;
+}
+
+QFrame[role="sectionSeparator"] {
+  color: #cfcfcf; /* used by HLine */
 }
