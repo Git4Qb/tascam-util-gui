@@ -58,30 +58,6 @@ $> udevadm control --reload-rules && udevadm trigger
 
 Here's the help text:
 
-To trigger a method stored in another file or module using a checkbox in PySide6, you need to import that method into your main PySide6 application and connect the checkbox’s state change to it. Here's a simple guide on how to do this:
-
-Step-by-Step Guide
-Create a Separate Module with a Method: First, create a separate file where your method is defined. For example, let's call it utils.py.
-
-utils.py
-
-python
-￼Skopiuj kod
-def external_method(state):
-    if state == 2:  # 2 is Qt.Checked, 0 is Qt.Unchecked
-        print("Checkbox is checked!")
-    else:
-        print("Checkbox is unchecked!")
-Use the Method in Your Main PySide6 Application: In your main file, import the method from utils.py and connect it to the checkbox's state change signal.
-
-main.py
-
-python
-￼Skopiuj kod
-import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QCheckBox, QVBoxLayout, QWidget
-from utils import external_method  # Import the method from utils.py
-from P
 ```
 usage: tascam-util.py [-h] command ...
 
