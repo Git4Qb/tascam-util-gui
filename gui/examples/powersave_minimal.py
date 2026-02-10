@@ -6,7 +6,7 @@ import usb.core
 import usb.util
 
 # Import functions from tascam-util
-from powersave import set_powersave_mode, get_mode_id
+from core.powersave import set_powersave_mode, get_mode_id
 
 class TascamController(QWidget):
     def __init__(self):

@@ -1,4 +1,4 @@
-DEVICE ID 0644:804e on Bus 003 Address 035 =================
+    DEVICE ID 0644:804e on Bus 003 Address 035 =================
  bLength                :   0x12 (18 bytes)
  bDescriptorType        :    0x1 Device
  bcdUSB                 :  0x200 USB 2.0
