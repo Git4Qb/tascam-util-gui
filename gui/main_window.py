@@ -34,44 +34,6 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._create_placeholder_tab("Inputs"), "Inputs")
         tabs.addTab(self._create_placeholder_tab("PowerSave"), "PowerSave")
 
-    def _create_routing_tab(self) -> QWidget:
-        """Create a simple card-like layout for the Routing tab."""
-        page = QWidget()
-        page_layout = QVBoxLayout(page)
-        page_layout.setContentsMargins(16, 16, 16, 16)
-        page_layout.setSpacing(12)
-
-        # Optional heading
-        heading = QLabel("Routing")
-        heading.setProperty("role", "heading")
-        page_layout.addWidget(heading)
-
-        # Card / panel
-        card = QFrame()
-        card.setProperty("role", "card")
-        card.setFrameShape(QFrame.StyledPanel)
-
-
-        card_layout = QGridLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.setHorizontalSpacing(12)
-        card_layout.setVerticalSpacing(10)
-
-        # Placeholder content inside the card
-        card_layout.addWidget(QLabel("Source:"), 0, 0)
-        card_layout.addWidget(QLabel("—"), 0, 1)
-
-        card_layout.addWidget(QLabel("Destination:"), 1, 0)
-        card_layout.addWidget(QLabel("—"), 1, 1)
-
-        apply_btn = QPushButton("Apply (placeholder)")
-        apply_btn.setEnabled(False)
-        card_layout.addWidget(apply_btn, 2, 0, 1, 2)
-
-        page_layout.addWidget(card)
-        page_layout.addStretch()
-
-        return page
 
     def _create_monitoring_tab(self) -> QWidget:
         """Create a simple card-like layout for the Monitoring tab."""

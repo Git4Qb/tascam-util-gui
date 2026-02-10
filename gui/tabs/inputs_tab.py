@@ -1,46 +1,32 @@
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QGridLayout,
-    QLabel,
-    QFrame,
-    QPushButton,
-)
+from PySide6.QtWidgets import QLabel, QPushButton, QComboBox
+
+from gui.tabs.base_tab import BaseTab
 
 
-class RoutingTab(QWidget):
+class InputsTab(BaseTab):
     """Inputs tab UI."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._build_ui()
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout = self._init_page("Inputs")
+        card, card_layout = self._create_card()
 
-        # Heading
-        heading = QLabel("Inputs")
-        heading.setProperty("role", "heading")
-        layout.addWidget(heading)
+        input_cb = QComboBox()
+        input_cb.addItems(["IN1", "IN2", "IN3", "IN4"])
 
-        # Card / panel
-        card = QFrame()
-        card.setProperty("role", "card")
+        mode_cb = QComboBox()
+        mode_cb.addItems(["ON", "OFF"])
 
-        card_layout = QGridLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.setHorizontalSpacing(12)
-        card_layout.setVerticalSpacing(10)
+        card_layout.addWidget(QLabel("Input:"), 0, 0)
+        card_layout.addWidget(input_cb, 0, 1)
 
-        card_layout.addWidget(QLabel("Source:"), 0, 0)
-        card_layout.addWidget(QLabel("—"), 0, 1)
+        card_layout.addWidget(QLabel("Mode:"), 1, 0)
+        card_layout.addWidget(mode_cb, 1, 1)
 
-        card_layout.addWidget(QLabel("Destination:"), 1, 0)
-        card_layout.addWidget(QLabel("—"), 1, 1)
-
-        apply_btn = QPushButton("Apply (placeholder)")
+        apply_btn = QPushButton("Apply input state (placeholder)")
         apply_btn.setEnabled(False)
         card_layout.addWidget(apply_btn, 2, 0, 1, 2)
 

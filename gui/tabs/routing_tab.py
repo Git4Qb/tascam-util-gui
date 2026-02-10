@@ -1,46 +1,32 @@
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QGridLayout,
-    QLabel,
-    QFrame,
-    QPushButton,
-)
+from PySide6.QtWidgets import QLabel, QPushButton, QComboBox
+
+from gui.tabs.base_tab import BaseTab
 
 
-class RoutingTab(QWidget):
-    """Routing tab UI (layout only, no logic)."""
+class RoutingTab(BaseTab):
+    """Routing tab UI."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._build_ui()
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout = self._init_page("Routing")
+        card, card_layout = self._create_card()
 
-        # Heading
-        heading = QLabel("Routing")
-        heading.setProperty("role", "heading")
-        layout.addWidget(heading)
+        source_cb = QComboBox()
+        source_cb.addItems(["MIX", "OUT12", "OUT34"])
 
-        # Card / panel
-        card = QFrame()
-        card.setProperty("role", "card")
-
-        card_layout = QGridLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.setHorizontalSpacing(12)
-        card_layout.setVerticalSpacing(10)
+        dest_cb = QComboBox()
+        dest_cb.addItems(["LINE12", "LINE34"])
 
         card_layout.addWidget(QLabel("Source:"), 0, 0)
-        card_layout.addWidget(QLabel("—"), 0, 1)
+        card_layout.addWidget(source_cb, 0, 1)
 
         card_layout.addWidget(QLabel("Destination:"), 1, 0)
-        card_layout.addWidget(QLabel("—"), 1, 1)
+        card_layout.addWidget(dest_cb, 1, 1)
 
-        apply_btn = QPushButton("Apply (placeholder)")
+        apply_btn = QPushButton("Apply routing (placeholder)")
         apply_btn.setEnabled(False)
         card_layout.addWidget(apply_btn, 2, 0, 1, 2)
 
