@@ -3,9 +3,6 @@
 This module intentionally contains only GUI layout scaffolding.
 No device/core logic should be imported here.
 """
-
-from __future__ import annotations
-
 import sys
 
 from PySide6.QtCore import Qt
@@ -21,7 +18,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("TASCAM Utility")
         self.resize(900, 600)
 
-        tabs = QTabWidget(self)
+        tabs = QTabWidget()
         self.setCentralWidget(tabs)
 
         tabs.addTab(self._create_placeholder_tab("Routing"), "Routing")
