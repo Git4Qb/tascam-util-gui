@@ -1,25 +1,101 @@
-from PySide6.QtCore import Qt
+"""Main GUI window layout for TASCAMUS 4x4.
+
+This module contains only GUI scaffolding/state behavior.
+No device/core command logic is invoked here.
+"""
+
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import (
+    QSize,
+    QTimer,
+)
+
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
-    QTabWidget,
+    QStackedWidget,
+    QTabBar,
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QStyle,
+    QStyleOptionTab,
+    QSizePolicy,
 )
 
-from gui.tabs import InputsTab, MonitoringTab, RoutingTab
 
+class EqualWidthTabBar(QTabBar):
+    def min_tab_width(self) -> int:
+        return self._min_single_tab_width()
+
+    def _min_single_tab_width(self) -> int:
+        worst = 0
+        for i in range(max(1, self.count())):
+            opt = QStyleOptionTab()
+            self.initStyleOption(opt, i)
+            text_w = opt.fontMetrics.horizontalAdvance(opt.text)
+            w = self.style().sizeFromContents(
+                QStyle.ContentsType.CT_TabBarTab, opt, QSize(text_w, 0), self
+            ).width()
+            worst = max(worst, w)
+        return worst
+
+    def tabSizeHint(self, index: int) -> QSize:
+        size = super().tabSizeHint(index)
+        n = max(1, self.count())
+        min_each = self._min_single_tab_width()
+        w = max(min_each, self.width() // n)   # równe + fill 100%
+        size.setWidth(w)
+        return size
+
+    def resizeEvent(self, e) -> None:
+        super().resizeEvent(e)
+        self.updateGeometry()
+        self.update()
+
+
+class TabsPanel(QWidget):
+    """QTabBar + QStackedWidget (zamiast QTabWidget)"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.tabbar = EqualWidthTabBar(self)
+        self.tabbar.setExpanding(False)  # bo my robimy equal-width w tabSizeHint
+        self.tabbar.setUsesScrollButtons(False)
+        self.tabbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        self.stack = QStackedWidget(self)
+
+        self.tabbar.currentChanged.connect(self.stack.setCurrentIndex)
+
+        layout.addWidget(self.tabbar)
+        layout.addWidget(self.stack, 1)
+
+    def add_tab(self, page: QWidget, title: str) -> None:
+        self.stack.addWidget(page)
+        self.tabbar.addTab(title)
+
+    def min_width_for_titles(self) -> int:
+        return max(1, self.tabbar.count()) * self.tabbar.min_tab_width()
 
 class MainWindow(QMainWindow):
+    """Main window with left settings column and right planning/status column."""
+
     def __init__(self) -> None:
         super().__init__()
+
         self.setWindowTitle("TASCAMUS 4x4")
-        self.resize(900, 720)
+        self.resize(980, 720)
 
         root = QWidget(self)
         self.setCentralWidget(root)
@@ -28,52 +104,80 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(12)
 
-        # LEFT COLUMN ---------------------------------------------------------
+        main_layout.addWidget(self._build_left_column(), 3)
+        main_layout.addWidget(self._build_right_column(), 2)
+
+        self._set_editing_mode()
+        QTimer.singleShot(0, self._apply_min_window_width)
+
+    def _apply_min_window_width(self) -> None:
+        # minimalna szerokość dla tabów (3 * najdłuższy tytuł + padding stylu)
+        tabs_min = self.tabs.min_width_for_titles()
+
+        # minimalna szerokość prawej kolumny z layoutu
+        right_min = self._right_col.minimumSizeHint().width()
+
+        # marginesy i spacing głównego layoutu
+        layout = self.centralWidget().layout()
+        margins = layout.contentsMargins()
+        spacing = layout.spacing()
+
+        total = (
+                margins.left() + margins.right()
+                + spacing
+                + tabs_min
+                + right_min
+        )
+
+        self.setMinimumWidth(total)
+
+    def _build_left_column(self) -> QWidget:
         left_col = QWidget(self)
         left_layout = QVBoxLayout(left_col)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(10)
 
-        self.tabs = QTabWidget(left_col)
-        tabbar = self.tabs.tabBar()
-        tabbar.setExpanding(True)
-        self.tabs.setUsesScrollButtons(False)
-        self.tabs.setElideMode(Qt.TextElideMode.ElideNone)
+        self.tabs = TabsPanel(left_col)
+        self.tabs.add_tab(self._placeholder_tab("Routing"), "Routing")
+        self.tabs.add_tab(self._placeholder_tab("Monitoring"), "Monitoring")
+        self.tabs.add_tab(self._placeholder_tab("Inputs"), "Inputs")
 
-        self.tabs.addTab(RoutingTab(), "Routing")
-        self.tabs.addTab(MonitoringTab(), "Monitoring")
-        self.tabs.addTab(InputsTab(), "Inputs")
+        # zero elide, zero scroll -> blokujemy minimalną szerokość okna
+        self.setMinimumWidth(self.tabs.min_width_for_titles() + 200)
 
-        sep = QFrame(left_col)
-        sep.setProperty("role", "sectionSeparator")
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
+
+        separator = QFrame(left_col)
+        separator.setProperty("role", "sectionSeparator")
+        separator.setFrameShape(QFrame.Shape.HLine)
 
         self.powersave_panel = QFrame(left_col)
-        ps_layout = QHBoxLayout(self.powersave_panel)
-        ps_layout.setContentsMargins(8, 6, 8, 6)
-        ps_layout.setSpacing(8)
+        powersave_layout = QHBoxLayout(self.powersave_panel)
+        powersave_layout.setContentsMargins(8, 6, 8, 6)
+        powersave_layout.setSpacing(8)
 
-        ps_title = QLabel("PowerSave", self.powersave_panel)
-        ps_title.setProperty("role", "heading")
-
-        ps_enabled = QLabel("Enabled", self.powersave_panel)
-        ps_enabled.setProperty("role", "heading")
+        powersave_title = QLabel("PowerSave", self.powersave_panel)
+        powersave_title.setProperty("role", "heading")
+        powersave_enabled = QLabel("Enabled", self.powersave_panel)
+        powersave_enabled.setProperty("role", "heading")
 
         self.powersave_toggle = QCheckBox(self.powersave_panel)
         self.powersave_toggle.setChecked(False)
 
-        ps_layout.addWidget(ps_title)
-        ps_layout.addStretch(1)
-        ps_layout.addWidget(ps_enabled)
-        ps_layout.addWidget(self.powersave_toggle)
+        powersave_layout.addWidget(powersave_title)
+        powersave_layout.addStretch(1)
+        powersave_layout.addWidget(powersave_enabled)
+        powersave_layout.addWidget(self.powersave_toggle)
 
         left_layout.addWidget(self.tabs, 1)
-        left_layout.addWidget(sep, 0)
+        left_layout.addWidget(separator, 0)
         left_layout.addWidget(self.powersave_panel, 0)
 
-        # RIGHT COLUMN --------------------------------------------------------
+        return left_col
+
+    def _build_right_column(self) -> QWidget:
+
         right_col = QWidget(self)
+        self._right_col = right_col
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
@@ -97,8 +201,8 @@ class MainWindow(QMainWindow):
         self.confirm_btn = QPushButton("Confirm changes", buttons_row)
         self.cancel_btn = QPushButton("Cancel", buttons_row)
 
-        self.confirm_btn.setEnabled(False)
-        self.cancel_btn.setEnabled(False)
+        self.plan_btn.clicked.connect(self._set_planned_mode)
+        self.cancel_btn.clicked.connect(self._set_editing_mode)
 
         buttons_layout.addWidget(self.plan_btn)
         buttons_layout.addWidget(self.confirm_btn)
@@ -110,5 +214,53 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.current_state_text, 1)
         right_layout.addWidget(buttons_row, 0)
 
-        main_layout.addWidget(left_col, 3)
-        main_layout.addWidget(right_col, 2)
+        return right_col
+
+    @staticmethod
+    def _placeholder_tab(name: str) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        heading = QLabel(name)
+        heading.setProperty("role", "heading")
+
+        card = QFrame()
+        card.setProperty("role", "card")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.addWidget(QLabel(f"{name} settings panel placeholder"))
+
+        layout.addWidget(heading)
+        layout.addWidget(card)
+        layout.addStretch(1)
+        return page
+
+    def _set_editing_mode(self) -> None:
+        self.tabs.setEnabled(True)
+        self.powersave_panel.setEnabled(True)
+        self.plan_btn.setEnabled(True)
+        self.confirm_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)
+
+    def _set_planned_mode(self) -> None:
+        self.tabs.setEnabled(False)
+        self.powersave_panel.setEnabled(False)
+        self.plan_btn.setEnabled(False)
+        self.confirm_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)
+
+
+def main() -> int:
+    app = QApplication(sys.argv)
+
+    qss = Path(__file__).with_name("style.qss")
+    if qss.exists():
+        app.setStyleSheet(qss.read_text(encoding="utf-8"))
+
+    window = MainWindow()
+    window.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
