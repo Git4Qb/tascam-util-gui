@@ -23,3 +23,31 @@ QFrame[role="card"] {
 QFrame[role="sectionSeparator"] {
   color: #cfcfcf;
 }
+
+/* Make text readable inside light "card" even on dark system themes */
+QFrame[role="card"] QLabel {
+  color: #2C2C2C;
+}
+
+/* Combo itself (closed state) */
+QFrame[role="card"] QComboBox {
+  color: #2C2C2C;
+  background: #FFFFFF;
+  border: 1px solid #b8b8b8;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+/* Dropdown list (popup) */
+QFrame[role="card"] QComboBox QAbstractItemView {
+  background: #FFFFFF;
+  color: #2C2C2C;
+  selection-background-color: #DCE7FF; /* delikatne zaznaczenie */
+  selection-color: #2C2C2C;
+}
+
+/* Optional: item padding in the popup */
+QFrame[role="card"] QComboBox QAbstractItemView::item {
+  padding: 6px 8px;
+}
+

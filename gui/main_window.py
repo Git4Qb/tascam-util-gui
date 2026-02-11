@@ -7,11 +7,7 @@ No device/core command logic is invoked here.
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import (
-    QSize,
-    QTimer,
-)
-
+from PySide6.QtCore import QSize, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -20,73 +16,14 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
-    QStackedWidget,
-    QTabBar,
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QStyle,
-    QStyleOptionTab,
-    QSizePolicy,
 )
 
+from .widgets.tabs_panel import TabsPanel
+from gui.tabs.routing_tab import RoutingTab
 
-class EqualWidthTabBar(QTabBar):
-    def min_tab_width(self) -> int:
-        return self._min_single_tab_width()
-
-    def _min_single_tab_width(self) -> int:
-        worst = 0
-        for i in range(max(1, self.count())):
-            opt = QStyleOptionTab()
-            self.initStyleOption(opt, i)
-            text_w = opt.fontMetrics.horizontalAdvance(opt.text)
-            w = self.style().sizeFromContents(
-                QStyle.ContentsType.CT_TabBarTab, opt, QSize(text_w, 0), self
-            ).width()
-            worst = max(worst, w)
-        return worst
-
-    def tabSizeHint(self, index: int) -> QSize:
-        size = super().tabSizeHint(index)
-        n = max(1, self.count())
-        min_each = self._min_single_tab_width()
-        w = max(min_each, self.width() // n)   # równe + fill 100%
-        size.setWidth(w)
-        return size
-
-    def resizeEvent(self, e) -> None:
-        super().resizeEvent(e)
-        self.updateGeometry()
-        self.update()
-
-
-class TabsPanel(QWidget):
-    """QTabBar + QStackedWidget (zamiast QTabWidget)"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self.tabbar = EqualWidthTabBar(self)
-        self.tabbar.setExpanding(False)  # bo my robimy equal-width w tabSizeHint
-        self.tabbar.setUsesScrollButtons(False)
-        self.tabbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-        self.stack = QStackedWidget(self)
-
-        self.tabbar.currentChanged.connect(self.stack.setCurrentIndex)
-
-        layout.addWidget(self.tabbar)
-        layout.addWidget(self.stack, 1)
-
-    def add_tab(self, page: QWidget, title: str) -> None:
-        self.stack.addWidget(page)
-        self.tabbar.addTab(title)
-
-    def min_width_for_titles(self) -> int:
-        return max(1, self.tabbar.count()) * self.tabbar.min_tab_width()
 
 class MainWindow(QMainWindow):
     """Main window with left settings column and right planning/status column."""
@@ -111,24 +48,14 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._apply_min_window_width)
 
     def _apply_min_window_width(self) -> None:
-        # minimalna szerokość dla tabów (3 * najdłuższy tytuł + padding stylu)
         tabs_min = self.tabs.min_width_for_titles()
-
-        # minimalna szerokość prawej kolumny z layoutu
         right_min = self._right_col.minimumSizeHint().width()
 
-        # marginesy i spacing głównego layoutu
         layout = self.centralWidget().layout()
         margins = layout.contentsMargins()
         spacing = layout.spacing()
 
-        total = (
-                margins.left() + margins.right()
-                + spacing
-                + tabs_min
-                + right_min
-        )
-
+        total = margins.left() + margins.right() + spacing + tabs_min + right_min
         self.setMinimumWidth(total)
 
     def _build_left_column(self) -> QWidget:
@@ -138,13 +65,9 @@ class MainWindow(QMainWindow):
         left_layout.setSpacing(10)
 
         self.tabs = TabsPanel(left_col)
-        self.tabs.add_tab(self._placeholder_tab("Routing"), "Routing")
+        self.tabs.add_tab(RoutingTab(left_col), "Routing")
         self.tabs.add_tab(self._placeholder_tab("Monitoring"), "Monitoring")
         self.tabs.add_tab(self._placeholder_tab("Inputs"), "Inputs")
-
-        # zero elide, zero scroll -> blokujemy minimalną szerokość okna
-        self.setMinimumWidth(self.tabs.min_width_for_titles() + 200)
-
 
         separator = QFrame(left_col)
         separator.setProperty("role", "sectionSeparator")
@@ -157,6 +80,7 @@ class MainWindow(QMainWindow):
 
         powersave_title = QLabel("PowerSave", self.powersave_panel)
         powersave_title.setProperty("role", "heading")
+
         powersave_enabled = QLabel("Enabled", self.powersave_panel)
         powersave_enabled.setProperty("role", "heading")
 
@@ -175,9 +99,9 @@ class MainWindow(QMainWindow):
         return left_col
 
     def _build_right_column(self) -> QWidget:
-
         right_col = QWidget(self)
         self._right_col = right_col
+
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
@@ -226,6 +150,7 @@ class MainWindow(QMainWindow):
 
         card = QFrame()
         card.setProperty("role", "card")
+
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(16, 16, 16, 16)
         card_layout.addWidget(QLabel(f"{name} settings panel placeholder"))
