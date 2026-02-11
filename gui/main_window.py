@@ -3,11 +3,12 @@
 This module contains only GUI scaffolding/state behavior.
 No device/core command logic is invoked here.
 """
+from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSize, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -22,7 +23,18 @@ from PySide6.QtWidgets import (
 )
 
 from .widgets.tabs_panel import TabsPanel
-from gui.tabs.routing_tab import RoutingTab
+from .widgets.planned_changes import PlannedChanges
+from .widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
+from .widgets.planned_keys import (
+    K_ROUTE_LINE12,
+    K_ROUTE_LINE34,
+    K_POWERSAVE,
+    PLANNED_ORDER,
+    MONITORING_PLANNED_KEY_BY_INPUT,
+)
+
+from gui.tabs.routing_tab import RoutingTab, RouteSelection
+from gui.tabs.monitoring_tab import MonitoringTab
 
 
 class MainWindow(QMainWindow):
@@ -34,6 +46,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("TASCAMUS 4x4")
         self.resize(980, 720)
 
+        # Planned changes model (keeps summary lines)
+        self._planned = PlannedChanges(order=PLANNED_ORDER)
+
         root = QWidget(self)
         self.setCentralWidget(root)
 
@@ -41,11 +56,31 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(12)
 
-        main_layout.addWidget(self._build_left_column(), 3)
-        main_layout.addWidget(self._build_right_column(), 2)
+        # IMPORTANT: build right first so planned_text exists before left wires signals
+        right = self._build_right_column()
+        left = self._build_left_column()
 
+        main_layout.addWidget(left, 3)
+        main_layout.addWidget(right, 2)
+
+        self._render_planned()
         self._set_editing_mode()
         QTimer.singleShot(0, self._apply_min_window_width)
+
+    # ------------------------------------------------------------------
+    # Planned changes helpers
+    # ------------------------------------------------------------------
+
+    def _set_planned_line(self, key: str, text: str) -> None:
+        self._planned.set_line(key, text)
+        self._render_planned()
+
+    def _render_planned(self) -> None:
+        self.planned_text.setPlainText(self._planned.render())
+
+    # ------------------------------------------------------------------
+    # Layout
+    # ------------------------------------------------------------------
 
     def _apply_min_window_width(self) -> None:
         tabs_min = self.tabs.min_width_for_titles()
@@ -65,14 +100,25 @@ class MainWindow(QMainWindow):
         left_layout.setSpacing(10)
 
         self.tabs = TabsPanel(left_col)
-        self.tabs.add_tab(RoutingTab(left_col), "Routing")
-        self.tabs.add_tab(self._placeholder_tab("Monitoring"), "Monitoring")
+
+        # --- Routing ---
+        routing = RoutingTab(left_col)
+        routing.route_changed.connect(self._on_route_changed)
+        self.tabs.add_tab(routing, "Routing")
+
+        # --- Monitoring ---
+        monitoring = MonitoringTab(left_col)
+        monitoring.monitor_changed.connect(self._on_monitor_changed)
+        self.tabs.add_tab(monitoring, "Monitoring")
+
+        # --- Inputs (placeholder for now) ---
         self.tabs.add_tab(self._placeholder_tab("Inputs"), "Inputs")
 
         separator = QFrame(left_col)
         separator.setProperty("role", "sectionSeparator")
         separator.setFrameShape(QFrame.Shape.HLine)
 
+        # --- PowerSave panel ---
         self.powersave_panel = QFrame(left_col)
         powersave_layout = QHBoxLayout(self.powersave_panel)
         powersave_layout.setContentsMargins(8, 6, 8, 6)
@@ -86,6 +132,7 @@ class MainWindow(QMainWindow):
 
         self.powersave_toggle = QCheckBox(self.powersave_panel)
         self.powersave_toggle.setChecked(False)
+        self.powersave_toggle.toggled.connect(self._on_powersave_toggled)
 
         powersave_layout.addWidget(powersave_title)
         powersave_layout.addStretch(1)
@@ -109,7 +156,6 @@ class MainWindow(QMainWindow):
         planned_label = QLabel("Planned changes", right_col)
         self.planned_text = QTextEdit(right_col)
         self.planned_text.setReadOnly(True)
-        self.planned_text.setPlainText("Changes you want to make:")
 
         current_label = QLabel("Current device state", right_col)
         self.current_state_text = QTextEdit(right_col)
@@ -159,6 +205,33 @@ class MainWindow(QMainWindow):
         layout.addWidget(card)
         layout.addStretch(1)
         return page
+
+    # ------------------------------------------------------------------
+    # Signal handlers (UI-only)
+    # ------------------------------------------------------------------
+
+    def _on_monitor_changed(self, inp: str, mode: str) -> None:
+        key = MONITORING_PLANNED_KEY_BY_INPUT.get(inp)
+        if not key:
+            return  # unknown input, ignore safely
+
+        label = MONITORING_INPUT_LABELS.get(inp, inp)
+        self._set_planned_line(key, f"Monitoring {label}: {mode}")
+
+    def _on_route_changed(self, sel: RouteSelection) -> None:
+        source_label = ROUTING_SOURCE_LABELS.get(sel.source, sel.source)
+
+        if sel.dest == "LINE12":
+            self._set_planned_line(K_ROUTE_LINE12, f"Routing Line 1/2: {source_label}")
+        elif sel.dest == "LINE34":
+            self._set_planned_line(K_ROUTE_LINE34, f"Routing Line 3/4: {source_label}")
+
+    def _on_powersave_toggled(self, enabled: bool) -> None:
+        self._set_planned_line(K_POWERSAVE, f"PowerSave: {'Enabled' if enabled else 'Disabled'}")
+
+    # ------------------------------------------------------------------
+    # Modes
+    # ------------------------------------------------------------------
 
     def _set_editing_mode(self) -> None:
         self.tabs.setEnabled(True)
