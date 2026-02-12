@@ -31,10 +31,13 @@ from .widgets.planned_keys import (
     K_POWERSAVE,
     PLANNED_ORDER,
     MONITORING_PLANNED_KEY_BY_INPUT,
+    INPUTS_PLANNED_KEY_BY_INPUT,
 )
 
 from gui.tabs.routing_tab import RoutingTab, RouteSelection
 from gui.tabs.monitoring_tab import MonitoringTab
+from gui.tabs.inputs_tab import InputsTab
+
 
 
 class MainWindow(QMainWindow):
@@ -111,8 +114,10 @@ class MainWindow(QMainWindow):
         monitoring.monitor_changed.connect(self._on_monitor_changed)
         self.tabs.add_tab(monitoring, "Monitoring")
 
-        # --- Inputs (placeholder for now) ---
-        self.tabs.add_tab(self._placeholder_tab("Inputs"), "Inputs")
+        # --- Inputs ---
+        inputs = InputsTab(left_col)
+        inputs.input_changed.connect(self._on_input_changed)
+        self.tabs.add_tab(inputs, "Inputs")
 
         separator = QFrame(left_col)
         separator.setProperty("role", "sectionSeparator")
@@ -225,6 +230,12 @@ class MainWindow(QMainWindow):
             self._set_planned_line(K_ROUTE_LINE12, f"Routing Line 1/2: {source_label}")
         elif sel.dest == "LINE34":
             self._set_planned_line(K_ROUTE_LINE34, f"Routing Line 3/4: {source_label}")
+
+    def _on_input_changed(self, inp: str, mode: str) -> None:
+        key = INPUTS_PLANNED_KEY_BY_INPUT.get(inp)
+        if not key:
+            return
+        self._set_planned_line(key, f"Input {inp}: {mode}")
 
     def _on_powersave_toggled(self, enabled: bool) -> None:
         self._set_planned_line(K_POWERSAVE, f"PowerSave: {'Enabled' if enabled else 'Disabled'}")

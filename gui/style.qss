@@ -51,3 +51,9 @@ QFrame[role="card"] QComboBox QAbstractItemView::item {
   padding: 6px 8px;
 }
 
+/* Checkbox text inside card */
+QFrame[role="card"] QCheckBox {
+    color: #2C2C2C;   /* użyj dokładnie tego samego koloru co QLabel w card */
+}
+
+
