@@ -1,15 +1,37 @@
 # core/device_manager.py
 
-from core.protocol import VENDOR_ID, PRODUCT_ID
-from core.transport import PyUsbTransport, DeviceNotFound, PermissionDenied, TransportError
+from core.protocol import (
+    VENDOR_ID,
+    PRODUCT_ID,
+)
+from core.transport import (
+    PyUsbTransport,
+    DeviceNotFound,
+    PermissionDenied,
+    TransportError,
+)
+from core.read_state import read_state as _read_state
 
-def connect(self) -> bool:
-    self._transport = PyUsbTransport(VENDOR_ID, PRODUCT_ID)
-    try:
-        self._transport.open()
-        self.connected = True
-        return True
-    except (DeviceNotFound, PermissionDenied, TransportError):
+
+class DeviceManager:
+
+    def __init__(self) -> None:
         self._transport = None
         self.connected = False
-        return False
+
+    def connect(self) -> bool:
+        self._transport = PyUsbTransport(VENDOR_ID, PRODUCT_ID)
+        try:
+            self._transport.open()
+            self.connected = True
+            return True
+        except (DeviceNotFound, PermissionDenied, TransportError):
+            self._transport = None
+            self.connected = False
+            return False
+
+    def read_state(self) -> DeviceState | None:
+        if not self.connected or self._transport is None:
+            return None
+
+        return _read_state(self._transport)
