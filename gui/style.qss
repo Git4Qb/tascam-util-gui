@@ -1,18 +1,31 @@
+/* gui/style.qss */
+
+/* -----------------------------
+   Tabs
+------------------------------ */
+
 QTabWidget::pane {
   border: 0;
 }
 
 QTabBar::tab {
-
   padding: 10px 12px;
   min-height: 34px;
   font-weight: 600;
 }
 
+/* -----------------------------
+   Headings
+------------------------------ */
+
 QLabel[role="heading"] {
   font-size: 18px;
   font-weight: 600;
 }
+
+/* -----------------------------
+   Card container
+------------------------------ */
 
 QFrame[role="card"] {
   border: 1px solid #b8b8b8;
@@ -29,7 +42,11 @@ QFrame[role="card"] QLabel {
   color: #2C2C2C;
 }
 
-/* Combo itself (closed state) */
+/* -----------------------------
+   ComboBox inside card
+------------------------------ */
+
+/* Combo closed */
 QFrame[role="card"] QComboBox {
   color: #2C2C2C;
   background: #FFFFFF;
@@ -38,22 +55,53 @@ QFrame[role="card"] QComboBox {
   padding: 4px 8px;
 }
 
-/* Dropdown list (popup) */
+/* Dropdown list */
 QFrame[role="card"] QComboBox QAbstractItemView {
   background: #FFFFFF;
   color: #2C2C2C;
-  selection-background-color: #DCE7FF; /* delikatne zaznaczenie */
+  selection-background-color: #DCE7FF;
   selection-color: #2C2C2C;
 }
 
-/* Optional: item padding in the popup */
+/* Item padding */
 QFrame[role="card"] QComboBox QAbstractItemView::item {
   padding: 6px 8px;
 }
 
-/* Checkbox text inside card */
-QFrame[role="card"] QCheckBox {
-    color: #2C2C2C;   /* użyj dokładnie tego samego koloru co QLabel w card */
+/* -----------------------------
+   Unified Checkbox + Radio style
+------------------------------ */
+
+/* Text color inside card */
+QFrame[role="card"] QCheckBox,
+QFrame[role="card"] QRadioButton {
+    color: #2C2C2C;
 }
 
+/* Indicator base (shared) */
+QCheckBox::indicator,
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;   /* soft square look */
+}
 
+/* Unchecked */
+QCheckBox::indicator:unchecked,
+QRadioButton::indicator:unchecked {
+    background-color: #2C2C2C;
+    border: 1px solid #555;
+}
+
+/* Checked */
+QCheckBox::indicator:checked,
+QRadioButton::indicator:checked {
+    background-color: #C56A4C;  /* Twój ciepły gliniany kolor */
+    border: 1px solid #C56A4C;
+}
+
+/* Hover (subtle feedback) */
+QCheckBox::indicator:hover,
+QRadioButton::indicator:hover {
+    border: 1px solid #777;
+}
