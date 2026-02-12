@@ -1,3 +1,4 @@
+# gui/main_window.py
 """Main GUI window layout for TASCAMUS 4x4.
 
 This module contains only GUI scaffolding/state behavior.
@@ -25,14 +26,7 @@ from PySide6.QtWidgets import (
 from .widgets.tabs_panel import TabsPanel
 from .widgets.planned_changes import PlannedChanges
 from .widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
-from .widgets.planned_keys import (
-    K_ROUTE_LINE12,
-    K_ROUTE_LINE34,
-    K_POWERSAVE,
-    PLANNED_ORDER,
-    MONITORING_PLANNED_KEY_BY_INPUT,
-    INPUTS_PLANNED_KEY_BY_INPUT,
-)
+from .widgets.planned_keys import PLANNED_ORDER
 
 from gui.tabs.routing_tab import RoutingTab, RouteSelection
 from gui.tabs.monitoring_tab import MonitoringTab
@@ -59,7 +53,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(12)
 
-        # IMPORTANT: build right first so planned_text exists before left wires signals
+        # Right is first so planned_text exists before left wires signals
         right = self._build_right_column()
         left = self._build_left_column()
 
@@ -191,54 +185,27 @@ class MainWindow(QMainWindow):
 
         return right_col
 
-    @staticmethod
-    def _placeholder_tab(name: str) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-
-        heading = QLabel(name)
-        heading.setProperty("role", "heading")
-
-        card = QFrame()
-        card.setProperty("role", "card")
-
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.addWidget(QLabel(f"{name} settings panel placeholder"))
-
-        layout.addWidget(heading)
-        layout.addWidget(card)
-        layout.addStretch(1)
-        return page
-
     # ------------------------------------------------------------------
     # Signal handlers (UI-only)
     # ------------------------------------------------------------------
 
     def _on_monitor_changed(self, inp: str, mode: str) -> None:
-        key = MONITORING_PLANNED_KEY_BY_INPUT.get(inp)
-        if not key:
-            return  # unknown input, ignore safely
-
         label = MONITORING_INPUT_LABELS.get(inp, inp)
-        self._set_planned_line(key, f"Monitoring {label}: {mode}")
+        self._set_planned_line(inp, f"Monitoring {label}: {mode}")
 
     def _on_route_changed(self, sel: RouteSelection) -> None:
         source_label = ROUTING_SOURCE_LABELS.get(sel.source, sel.source)
-
         if sel.dest == "LINE12":
-            self._set_planned_line(K_ROUTE_LINE12, f"Routing Line 1/2: {source_label}")
+            self._set_planned_line("LINE12", f"Routing Line 1/2: {source_label}")
         elif sel.dest == "LINE34":
-            self._set_planned_line(K_ROUTE_LINE34, f"Routing Line 3/4: {source_label}")
+            self._set_planned_line("LINE34", f"Routing Line 3/4: {source_label}")
 
     def _on_input_changed(self, inp: str, mode: str) -> None:
-        key = INPUTS_PLANNED_KEY_BY_INPUT.get(inp)
-        if not key:
-            return
-        self._set_planned_line(key, f"Input {inp}: {mode}")
+        self._set_planned_line(inp, f"Input {inp}: {mode}")
 
     def _on_powersave_toggled(self, enabled: bool) -> None:
-        self._set_planned_line(K_POWERSAVE, f"PowerSave: {'Enabled' if enabled else 'Disabled'}")
+        mode = "ON" if enabled else "OFF"
+        self._set_planned_line("POWERSAVE", f"PowerSave: {mode}")
 
     # ------------------------------------------------------------------
     # Modes

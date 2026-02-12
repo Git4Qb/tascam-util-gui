@@ -1,6 +1,9 @@
 # gui/tabs/monitoring_tab.py
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import (
+    Qt,
+    Signal,
+)
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -34,7 +37,7 @@ class MonitoringTab(QWidget):
 
     def _build_ui(self) -> None:
         page_layout = QVBoxLayout(self)
-        page_layout.setContentsMargins(16, 16, 16, 16)
+        page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.setSpacing(12)
 
         heading = QLabel("Monitoring", self)
@@ -58,7 +61,7 @@ class MonitoringTab(QWidget):
         grid.setVerticalSpacing(10)
 
         # --- Header row ---
-        grid.addWidget(QLabel("", card), 0, 0)
+        grid.addWidget(QLabel(card), 0, 0)
 
         h_mono = QLabel("MONO", card)
         h_stereo = QLabel("STEREO", card)

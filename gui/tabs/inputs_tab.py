@@ -31,6 +31,7 @@ class InputsTab(QWidget):
         card_layout.setSpacing(10)
 
         hint = QLabel("Enable/disable device inputs (checked = ON).", card)
+        hint.setProperty("role", "muted")
         card_layout.addWidget(hint)
 
         row = QWidget(card)
@@ -40,12 +41,17 @@ class InputsTab(QWidget):
 
         self._checks: dict[str, QCheckBox] = {}
 
-        for name in ("IN1", "IN2", "IN3", "IN4"):
-            cb = QCheckBox(name, row)
+        for key, label in [
+            ("IN1", "Input 1"),
+            ("IN2", "Input 2"),
+            ("IN3", "Input 3"),
+            ("IN4", "Input 4"),
+        ]:
+            cb = QCheckBox(label, row)
             cb.setChecked(False)
-            cb.toggled.connect(lambda checked, n=name: self._emit_change(n, checked))
+            cb.toggled.connect(lambda checked, k=key: self._emit_change(k, checked))
             row_layout.addWidget(cb)
-            self._checks[name] = cb
+            self._checks[key] = cb
 
         row_layout.addStretch(1)
         card_layout.addWidget(row)

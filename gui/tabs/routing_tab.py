@@ -1,3 +1,5 @@
+# gui/tabs/routing_tab.py
+
 from dataclasses import dataclass
 
 from PySide6.QtCore import Signal
@@ -9,10 +11,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-
-ARROW = "→"
-
 
 @dataclass(frozen=True)
 class RouteSelection:
@@ -33,9 +31,9 @@ class RoutingTab(QWidget):
     route_changed = Signal(object)  # emits RouteSelection
 
     SOURCES = [
-        ("MIX", "MIX"),
-        ("Out 1/2", "OUT12"),
-        ("Out 3/4", "OUT34"),
+        ("Monitor Mix", "MIX"),
+        ("Computer Out 1/2", "OUT12"),
+        ("Computer Out 3/4", "OUT34"),
     ]
 
     def __init__(self, parent=None):
@@ -134,21 +132,3 @@ class RoutingTab(QWidget):
             "LINE12": self.route_for("LINE12"),
             "LINE34": self.route_for("LINE34"),
         }
-
-    # ------------------------------------------------------------------
-    # Human-readable plan
-    # ------------------------------------------------------------------
-
-    def planned_human_readable(self) -> list[str]:
-        routes = self.get_routes()
-
-        source_map = {
-            "MIX": "Monitor Mix",
-            "OUT12": "Computer Out 1/2",
-            "OUT34": "Computer Out 3/4",
-        }
-
-        return [
-            f"{source_map[routes['LINE12']]} {ARROW} US-4x4 Line 1/2",
-            f"{source_map[routes['LINE34']]} {ARROW} US-4x4 Line 3/4",
-        ]
