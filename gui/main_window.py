@@ -2,7 +2,7 @@
 """Main GUI window layout for TASCAMUS 4x4.
 
 This module contains only GUI scaffolding/state behavior.
-No device/core command logic is invoked here.
+No device/cli_core command logic is invoked here.
 """
 from __future__ import annotations
 
