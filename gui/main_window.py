@@ -21,8 +21,10 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QInputDialog,
 )
 
+from core.devices import SUPPORTED_DEVICES
 from .widgets.tabs_panel import TabsPanel
 from .widgets.planned_changes import PlannedChanges
 from .widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
@@ -31,6 +33,9 @@ from .widgets.planned_keys import PLANNED_ORDER
 from gui.tabs.routing_tab import RoutingTab, RouteSelection
 from gui.tabs.monitoring_tab import MonitoringTab
 from gui.tabs.inputs_tab import InputsTab
+
+from core.detector import detect_supported_devices
+from core.device_manager import DeviceManager
 
 
 
@@ -235,6 +240,31 @@ def main() -> int:
 
     window = MainWindow()
     window.show()
+    devices_onboard = detect_supported_devices(SUPPORTED_DEVICES)
+    if len(devices_onboard) == 1:
+        manager = DeviceManager(devices_onboard[0])
+        manager.connect()
+
+    elif len(devices_onboard) > 1:
+        labels = [d.name for d in devices_onboard]
+
+        choice, ok = QInputDialog.getItem(
+        window,
+        "Select device",
+        "Multiple supported devices detected. Choose one.",
+        labels,
+        0,
+        False,
+        )
+
+        if ok:
+            idx = labels.index(choice)
+            manager = DeviceManager(devices_onboard[idx])
+            manager.connect()
+
+    else:
+        pass
+
     return app.exec()
 
 

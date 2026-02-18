@@ -109,6 +109,14 @@ class PyUsbTransport:
         self._cfg = None
         self._claimed = False
 
+    @staticmethod
+    def is_present(vendor_id: int, product_id: int) -> bool:
+        return usb.core.find(
+            idVendor = vendor_id,
+            idProduct = product_id
+        ) is not None
+
+
     def open(self) -> None:
         dev = usb.core.find(idVendor=self._vendor_id, idProduct=self._product_id)
         if dev is None:
