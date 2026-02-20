@@ -133,27 +133,18 @@ class RoutingTab(QWidget):
             "LINE34": self.route_for("LINE34"),
         }
 
-    def set_from_device_state(self, s) -> None:
-        """Apply routing from DeviceState without emitting signals.
+def set_from_device_state(self, s) -> None:
+    """
+    Apply routing state from DeviceState without emitting signals.
+    """
+    self.combo_line12.blockSignals(True)
+    self.combo_line34.blockSignals(True)
 
-        DeviceState.routing holds device enum indices:
-            0 -> Monitor Mix
-            1 -> Computer Out 1/2
-            2 -> Computer Out 3/4
-        """
-        idx_to_source = {
-            0: "MIX",
-            1: "OUT12",
-            2: "OUT34",
-        }
-        line12 = idx_to_source.get(int(s.routing[0]), "MIX") if len(s.routing) > 0 else "MIX"
-        line34 = idx_to_source.get(int(s.routing[1]), "MIX") if len(s.routing) > 1 else "MIX"
-
-        self.combo_line12.blockSignals(True)
-        self.combo_line34.blockSignals(True)
-        try:
-            self.set_route("LINE12", line12)
-            self.set_route("LINE34", line34)
-        finally:
-            self.combo_line12.blockSignals(False)
-            self.combo_line34.blockSignals(False)
+    try:
+        # assuming DeviceState has:
+        # s.routing = ["MIX", "OUT12"] or similar
+        self.set_route("LINE12", s.routing[0])
+        self.set_route("LINE34", s.routing[1])
+    finally:
+        self.combo_line12.blockSignals(False)
+        self.combo_line34.blockSignals(False)

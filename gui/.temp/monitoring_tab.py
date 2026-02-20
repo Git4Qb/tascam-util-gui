@@ -185,12 +185,15 @@ class MonitoringTab(QWidget):
                 r.blockSignals(False)
 
     def set_from_device_state(self, s) -> None:
-        """Apply monitoring mode from DeviceState without emitting signals."""
-        # s.monitoring_mode: [0..1] where 0=Mono, 1=Stereo
-        modes = {
-            0: "MONO",
-            1: "STEREO",
-        }
-        in12 = modes.get(int(s.monitoring_mode[0]), "STEREO") if len(s.monitoring_mode) > 0 else "STEREO"
-        in34 = modes.get(int(s.monitoring_mode[1]), "STEREO") if len(s.monitoring_mode) > 1 else "STEREO"
-        self.set_state(in12_mode=in12, in34_mode=in34, emit=False)
+        """
+        Apply monitoring mode from DeviceState safely.
+        """
+        self.combo_in12.blockSignals(True)
+        self.combo_in34.blockSignals(True)
+
+        try:
+            self.combo_in12.setCurrentIndex(s.monitoring_mode[0])
+            self.combo_in34.setCurrentIndex(s.monitoring_mode[1])
+        finally:
+            self.combo_in12.blockSignals(False)
+            self.combo_in34.blockSignals(False)

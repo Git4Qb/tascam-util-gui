@@ -397,7 +397,6 @@ class MainWindow(QMainWindow):
         self.right.set_current_state_text(self._format_device_state(state))
         self.left.set_from_device_state(state)
 
-
 def main() -> int:
     app = QApplication(sys.argv)
 
