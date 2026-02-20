@@ -11,8 +11,7 @@ class TascamControlGUI(QWidget):
         self.setGeometry(100, 100, 300, 400)
 
         # Main layout
-        self.
-        main_layout = QVBoxLayout()
+        self.main_layout = QVBoxLayout()
 
         for item in inputs:
             self.checkbox = QCheckBox(inputs[item])

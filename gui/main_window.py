@@ -1,3 +1,4 @@
+# gui/main_window.py
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 from core.devices import SUPPORTED_DEVICES
 from core.detector import detect_supported_devices
 from core.device_manager import DeviceManager
+from core.device_state import DeviceState
 
 from gui.layout.left_column import LeftColumnWidget
 from gui.layout.right_column import RightColumnWidget
@@ -86,6 +88,7 @@ class MainWindow(QMainWindow):
         self._render_planned()
         self._set_idle_mode()
         self._set_status("No device connected.", can_reconnect=True)
+        self.right.set_current_state_text("Not loaded yet.")
 
         QTimer.singleShot(0, self._apply_min_window_width)
         QTimer.singleShot(0, self._startup_autodetect)
@@ -110,7 +113,10 @@ class MainWindow(QMainWindow):
             return {"devices": {}}
 
     def _save_profiles(self, data: dict) -> None:
-        self._profiles_path().write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._profiles_path().write_text(
+            json.dumps(data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     def _device_key(self) -> str:
         if self.device_manager is not None:
@@ -187,49 +193,57 @@ class MainWindow(QMainWindow):
         if len(devices) == 0:
             self.device_manager = None
             self._set_idle_mode()
+            self.right.set_current_state_text("Not loaded yet.")
             self._set_status("No supported device detected.", can_reconnect=True)
             return
 
         if len(devices) == 1:
             selected = devices[0]
             dm = DeviceManager(selected)
-            if dm.connect():
-                self.device_manager = dm
-                self._set_editing_mode()
-                self._set_status(f"Connected: {selected.name}", can_reconnect=True)
-                return
-
-            self.device_manager = None
-            self._set_idle_mode()
-            self._set_status("Connection failed.", can_reconnect=True)
+            self._connect_and_load_state(dm, selected.name)
             return
 
         labels = [d.name for d in devices]
         choice, ok = QInputDialog.getItem(
-            self, "Select device", "Multiple supported devices detected. Choose one.", labels, 0, False
+            self,
+            "Select device",
+            "Multiple supported devices detected. Choose one.",
+            labels,
+            0,
+            False,
         )
         if not ok:
             self.device_manager = None
             self._set_idle_mode()
+            self.right.set_current_state_text("Not loaded yet.")
             self._set_status("Device selection canceled.", can_reconnect=True)
             return
 
         selected = devices[labels.index(choice)]
         dm = DeviceManager(selected)
+        self._connect_and_load_state(dm, selected.name)
+
+    def _connect_and_load_state(self, dm: DeviceManager, device_name: str) -> None:
         if dm.connect():
             self.device_manager = dm
             self._set_editing_mode()
-            self._set_status(f"Connected: {selected.name}", can_reconnect=True)
-        else:
-            self.device_manager = None
-            self._set_idle_mode()
-            err = dm.last_error or "Unknown error"
-            self._set_status(f"Connection failed: {err}", can_reconnect=True)
+            self._set_status(f"Connected: {device_name}", can_reconnect=True)
+
+            state = dm.read_state()
+            if state is not None:
+                self._apply_device_state_to_gui(state)
+            else:
+                err = dm.last_error or "Unknown error"
+                self.right.set_current_state_text(f"State read failed: {err}")
+
             return
 
+        # connect failed
         self.device_manager = None
         self._set_idle_mode()
-        self._set_status("Connection failed.", can_reconnect=True)
+        self.right.set_current_state_text("Not loaded yet.")
+        err = dm.last_error or "Unknown error"
+        self._set_status(f"Connection failed: {err}", can_reconnect=True)
 
     # -------------------------
     # Reconnect modal logic
@@ -275,6 +289,7 @@ class MainWindow(QMainWindow):
         self._render_planned()
 
         self._set_idle_mode()
+        self.right.set_current_state_text("Not loaded yet.")
         self._set_status("Disconnected. Ready to reconnect.", can_reconnect=True)
 
         self._startup_autodetect()
@@ -349,6 +364,38 @@ class MainWindow(QMainWindow):
         total = margins.left() + margins.right() + 12 + tabs_min + right_min
         self.setMinimumWidth(total)
 
+    # -------------------------
+    # DeviceState -> UI
+    # -------------------------
+
+    def _format_device_state(self, s: DeviceState) -> str:
+        ps = "On" if s.powersave else "Off"
+
+        inputs = ", ".join(
+            f"IN{i + 1}={'On' if enabled else 'Off'}"
+            for i, enabled in enumerate(s.input_enable)
+        )
+
+        mon = ", ".join(
+            f"IN{pair}={'Stereo' if mode == 1 else 'Mono'}"
+            for pair, mode in zip(("1/2", "3/4"), s.monitoring_mode)
+        )
+
+        rout = ", ".join(
+            f"Line {pair}={val}"
+            for pair, val in zip(("1/2", "3/4"), s.routing)
+        )
+
+        return "\n".join([
+            f"PowerSave: {ps}",
+            f"Inputs: {inputs}",
+            f"Monitoring: {mon}",
+            f"Routing: {rout}",
+        ])
+
+    def _apply_device_state_to_gui(self, state: DeviceState) -> None:
+        self.right.set_current_state_text(self._format_device_state(state))
+        self.left.set_from_device_state(state)
 
 def main() -> int:
     app = QApplication(sys.argv)

@@ -69,11 +69,13 @@ class DeviceManager:
             self.last_error = "Permission denied"
             return False
 
-        except TransportError:
+        except TransportError as e:
             self._transport = None
             self.status = DeviceStatus.ERROR
-            self.last_error = "Transport error"
+            # self.last_error = "Transport error"
+            self.last_error = str(e)
             return False
+
 
     def read_state(self) -> DeviceState | None:
         if self.status != DeviceStatus.CONNECTED or self._transport is None:

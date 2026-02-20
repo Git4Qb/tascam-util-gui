@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-
+from core.device_state import DeviceState
 
 class InputsTab(QWidget):
     """
@@ -62,3 +62,20 @@ class InputsTab(QWidget):
     def _emit_change(self, input_name: str, checked: bool) -> None:
         mode = "ON" if checked else "OFF"
         self.input_changed.emit(input_name, mode)
+
+    def set_from_device_state(self, s: DeviceState) -> None:
+        # s.input_enable is [IN1..IN4]
+        mapping = {
+            "IN1": s.input_enable[0] if len(s.input_enable) > 0 else False,
+            "IN2": s.input_enable[1] if len(s.input_enable) > 1 else False,
+            "IN3": s.input_enable[2] if len(s.input_enable) > 2 else False,
+            "IN4": s.input_enable[3] if len(s.input_enable) > 3 else False,
+        }
+
+        for key, value in mapping.items():
+            cb = self._checks.get(key)
+            if cb is None:
+                continue
+            cb.blockSignals(True)
+            cb.setChecked(bool(value))
+            cb.blockSignals(False)

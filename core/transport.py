@@ -116,19 +116,16 @@ class PyUsbTransport:
             idProduct = product_id
         ) is not None
 
-
     def open(self) -> None:
         dev = usb.core.find(idVendor=self._vendor_id, idProduct=self._product_id)
         if dev is None:
             raise DeviceNotFound("USB device not found")
 
         try:
-            # Ensure a configuration is selected
-            dev.set_configuration()
-            cfg = dev.get_active_configuration()
-
-            # Detach kernel drivers (vendored does 0..4)
-            for iface in range(0, 5):
+            # # Ensure a configuration is selected
+            # dev.set_configuration()
+            # Detach kernel drivers for interfaces that actually exist in this config
+            for iface in range(0,8):
                 try:
                     if dev.is_kernel_driver_active(iface):
                         dev.detach_kernel_driver(iface)
@@ -136,10 +133,11 @@ class PyUsbTransport:
                     # Some backends/permissions may not support this check cleanly.
                     pass
 
-            # Claim interfaces 0..4, altsetting 0
-            for iface in range(0, 5):
-                intf = cfg[(iface, 0)]
-                usb.util.claim_interface(dev, intf)
+            cfg = dev.get_active_configuration()
+
+            # Claim only existing interfaces (no hardcoded ranges / altsettings)
+            for intf in cfg:
+                usb.util.claim_interface(dev, intf.bInterfaceNumber)
 
         except usb.USBError as e:
             msg = str(e).lower()
@@ -160,18 +158,19 @@ class PyUsbTransport:
 
         try:
             if self._claimed:
-                for iface in range(0, 5):
+                # Release only interfaces that actually exist
+                for intf in self._cfg:
                     try:
-                        intf = self._cfg[(iface, 0)]
-                        usb.util.release_interface(self._dev, intf)
+                        usb.util.release_interface(self._dev, intf.bInterfaceNumber)
                     except usb.USBError:
                         pass
 
-            # vendored attaches only driver 0; we’ll do the same (safe minimal)
-            try:
-                self._dev.attach_kernel_driver(0)
-            except usb.USBError:
-                pass
+            # Re-attach kernel drivers best-effort (only for existing interfaces)
+            for intf in self._cfg:
+                try:
+                    self._dev.attach_kernel_driver(intf.bInterfaceNumber)
+                except usb.USBError:
+                    pass
 
         finally:
             self._dev = None

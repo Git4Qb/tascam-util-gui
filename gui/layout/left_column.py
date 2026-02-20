@@ -1,3 +1,5 @@
+# gui/layout/left_column.py
+
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
@@ -10,7 +12,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gui.tabs.routing_tab import RoutingTab, RouteSelection
+from core.device_state import DeviceState
+
+from gui.tabs.routing_tab import RoutingTab
 from gui.tabs.monitoring_tab import MonitoringTab
 from gui.tabs.inputs_tab import InputsTab
 
@@ -35,19 +39,19 @@ class LeftColumnWidget(QWidget):
         self.tabs = TabsPanel(self)
 
         # Routing
-        routing = RoutingTab(self)
-        routing.route_changed.connect(self.route_changed.emit)
-        self.tabs.add_tab(routing, "Routing")
+        self.routing_tab = RoutingTab(self)
+        self.routing_tab.route_changed.connect(self.route_changed.emit)
+        self.tabs.add_tab(self.routing_tab, "Routing")
 
         # Monitoring
-        monitoring = MonitoringTab(self)
-        monitoring.monitor_changed.connect(self.monitor_changed.emit)
-        self.tabs.add_tab(monitoring, "Monitoring")
+        self.monitoring_tab = MonitoringTab(self)
+        self.monitoring_tab.monitor_changed.connect(self.monitor_changed.emit)
+        self.tabs.add_tab(self.monitoring_tab, "Monitoring")
 
         # Inputs
-        inputs = InputsTab(self)
-        inputs.input_changed.connect(self.input_changed.emit)
-        self.tabs.add_tab(inputs, "Inputs")
+        self.inputs_tab = InputsTab(self)
+        self.inputs_tab.input_changed.connect(self.input_changed.emit)
+        self.tabs.add_tab(self.inputs_tab, "Inputs")
 
         separator = QFrame(self)
         separator.setProperty("role", "sectionSeparator")
@@ -84,3 +88,25 @@ class LeftColumnWidget(QWidget):
 
     def min_width_for_titles(self) -> int:
         return self.tabs.min_width_for_titles()
+
+    def set_from_device_state(self, s: DeviceState) -> None:
+        # IMPORTANT: block signals so loading state doesn't create "planned" edits.
+        self.powersave_toggle.blockSignals(True)
+        self.powersave_toggle.setChecked(bool(s.powersave))
+        self.powersave_toggle.blockSignals(False)
+
+        # Call optional tab APIs if they exist (won't crash if not implemented yet).
+        if hasattr(self.inputs_tab, "set_from_device_state"):
+            self.inputs_tab.set_from_device_state(s)
+        elif hasattr(self.inputs_tab, "set_enabled_states"):
+            self.inputs_tab.set_enabled_states(s.input_enable)
+
+        if hasattr(self.monitoring_tab, "set_from_device_state"):
+            self.monitoring_tab.set_from_device_state(s)
+        elif hasattr(self.monitoring_tab, "set_modes"):
+            self.monitoring_tab.set_modes(s.monitoring_mode)
+
+        if hasattr(self.routing_tab, "set_from_device_state"):
+            self.routing_tab.set_from_device_state(s)
+        elif hasattr(self.routing_tab, "set_routes"):
+            self.routing_tab.set_routes(s.routing)
