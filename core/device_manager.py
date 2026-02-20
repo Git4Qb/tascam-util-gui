@@ -27,6 +27,24 @@ class DeviceManager:
         self.last_error: str | None = None
         self.status: DeviceStatus = DeviceStatus.DISCONNECTED
 
+    @property
+    def descriptor(self) -> DeviceDescriptor:
+        return self._descriptor
+
+    @property
+    def connected(self) -> bool:
+        return self.status == DeviceStatus.CONNECTED
+
+    def disconnect(self) -> None:
+        if self._transport is not None:
+            try:
+                self._transport.close()
+            except Exception:
+                pass
+        self._transport = None
+        self.status = DeviceStatus.DISCONNECTED
+        self.last_error = None
+
     def connect(self) -> bool:
         self._transport = PyUsbTransport(
             self._descriptor.vendor_id,

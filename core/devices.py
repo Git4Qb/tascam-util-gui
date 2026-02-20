@@ -12,6 +12,7 @@ class DeviceDescriptor:
 
 
 """ Supported device descriptors (registry). """
+
 US4X4 = DeviceDescriptor(
     name = "Tascam US-4X4",
     vendor_id = 0x0644,

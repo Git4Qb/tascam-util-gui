@@ -1,46 +1,40 @@
-# gui/main_window.py
-"""Main GUI window layout for TASCAMUS 4x4.
-
-This module contains only GUI scaffolding/state behavior.
-No device/cli_core command logic is invoked here.
-"""
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
-    QFrame,
     QHBoxLayout,
-    QLabel,
+    QInputDialog,
     QMainWindow,
-    QPushButton,
-    QTextEdit,
+    QMessageBox,
     QVBoxLayout,
     QWidget,
-    QInputDialog,
 )
 
 from core.devices import SUPPORTED_DEVICES
-from .widgets.tabs_panel import TabsPanel
-from .widgets.planned_changes import PlannedChanges
-from .widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
-from .widgets.planned_keys import PLANNED_ORDER
-
-from gui.tabs.routing_tab import RoutingTab, RouteSelection
-from gui.tabs.monitoring_tab import MonitoringTab
-from gui.tabs.inputs_tab import InputsTab
-
 from core.detector import detect_supported_devices
 from core.device_manager import DeviceManager
 
+from gui.layout.left_column import LeftColumnWidget
+from gui.layout.right_column import RightColumnWidget
+from gui.layout.status_bar import StatusBarWidget
+
+from gui.widgets.planned_changes import PlannedChanges
+from gui.widgets.planned_keys import PLANNED_ORDER
+from gui.widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
+
+from gui.tabs.routing_tab import RouteSelection
 
 
 class MainWindow(QMainWindow):
-    """Main window with left settings column and right planning/status column."""
+    """Controller: owns state, connects signals, manages modes, profiles, autodetect."""
+
+    PROFILE_DIRNAME = "profiles"
+    PROFILE_FILENAME = "device_profiles.json"
 
     def __init__(self) -> None:
         super().__init__()
@@ -48,151 +42,257 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("TASCAMUS 4x4")
         self.resize(980, 720)
 
-        # Planned changes model (keeps summary lines)
+        self.device_manager: DeviceManager | None = None
         self._planned = PlannedChanges(order=PLANNED_ORDER)
 
         root = QWidget(self)
         self.setCentralWidget(root)
 
-        main_layout = QHBoxLayout(root)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(12)
+        root_layout = QVBoxLayout(root)
+        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setSpacing(10)
 
-        # Right is first so planned_text exists before left wires signals
-        right = self._build_right_column()
-        left = self._build_left_column()
+        content_row = QWidget(root)
+        content_layout = QHBoxLayout(content_row)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
 
-        main_layout.addWidget(left, 3)
-        main_layout.addWidget(right, 2)
+        self.left = LeftColumnWidget(content_row)
+        self.right = RightColumnWidget(content_row)
+        self.status = StatusBarWidget(root)
 
+        content_layout.addWidget(self.left, 3)
+        content_layout.addWidget(self.right, 2)
+
+        root_layout.addWidget(content_row, 1)
+        root_layout.addWidget(self.status, 0)
+
+        # Wire UI → controller
+        self.left.route_changed.connect(self._on_route_changed)
+        self.left.monitor_changed.connect(self._on_monitor_changed)
+        self.left.input_changed.connect(self._on_input_changed)
+        self.left.powersave_toggled.connect(self._on_powersave_toggled)
+
+        self.right.plan_clicked.connect(self._set_planned_mode)
+        self.right.cancel_clicked.connect(self._set_editing_mode)
+        # confirm_clicked stays for later (apply-to-device)
+        # self.right.confirm_clicked.connect(self._on_confirm_clicked)
+
+        self.status.reconnect_clicked.connect(self._on_reconnect_clicked)
+        self.status.save_profile_clicked.connect(self._on_save_profile_clicked)
+        self.status.load_profile_clicked.connect(self._on_load_profile_clicked)
+
+        # Initial UI state
         self._render_planned()
-        self._set_editing_mode()
-        QTimer.singleShot(0, self._apply_min_window_width)
+        self._set_idle_mode()
+        self._set_status("No device connected.", can_reconnect=True)
 
-    # ------------------------------------------------------------------
-    # Planned changes helpers
-    # ------------------------------------------------------------------
+        QTimer.singleShot(0, self._apply_min_window_width)
+        QTimer.singleShot(0, self._startup_autodetect)
+
+    # -------------------------
+    # Profiles
+    # -------------------------
+
+    def _profiles_path(self) -> Path:
+        base = Path(__file__).resolve().parent
+        d = base / self.PROFILE_DIRNAME
+        d.mkdir(parents=True, exist_ok=True)
+        return d / self.PROFILE_FILENAME
+
+    def _load_profiles(self) -> dict:
+        path = self._profiles_path()
+        if not path.exists():
+            return {"devices": {}}
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"devices": {}}
+
+    def _save_profiles(self, data: dict) -> None:
+        self._profiles_path().write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _device_key(self) -> str:
+        if self.device_manager is not None:
+            desc = getattr(self.device_manager, "descriptor", None)
+            if desc is not None:
+                return f"{desc.vendor_id:04x}:{desc.product_id:04x}"
+        return "offline"
+
+    def _device_display_name(self) -> str:
+        if self.device_manager is not None:
+            desc = getattr(self.device_manager, "descriptor", None)
+            if desc is not None:
+                return desc.name
+        return "No device"
+
+    def _on_save_profile_clicked(self) -> None:
+        if self.device_manager is None or not getattr(self.device_manager, "connected", False):
+            QMessageBox.information(self, "Save profile", "Connect a device first, then save a profile for it.")
+            return
+
+        name, ok = QInputDialog.getText(self, "Save profile", f"Profile name for {self._device_display_name()}:")
+        if not ok:
+            return
+        name = name.strip()
+        if not name:
+            return
+
+        data = self._load_profiles()
+        devices = data.setdefault("devices", {})
+        key = self._device_key()
+        dev = devices.setdefault(key, {"profiles": {}})
+        dev["profiles"][name] = {"planned_lines": dict(self._planned.lines)}
+        self._save_profiles(data)
+
+        self._set_status(f"Saved profile '{name}' for {self._device_display_name()}.", can_reconnect=True)
+
+    def _on_load_profile_clicked(self) -> None:
+        if self.device_manager is None or not getattr(self.device_manager, "connected", False):
+            QMessageBox.information(self, "Load profile", "Connect a device first, then load a profile for it.")
+            return
+
+        data = self._load_profiles()
+        devices = data.get("devices", {})
+        dev = devices.get(self._device_key())
+        profiles = (dev or {}).get("profiles", {})
+        if not profiles:
+            QMessageBox.information(self, "Load profile", f"No saved profiles found for {self._device_display_name()}.")
+            return
+
+        labels = sorted(profiles.keys())
+        choice, ok = QInputDialog.getItem(
+            self, "Load profile", f"Select a profile for {self._device_display_name()}:", labels, 0, False
+        )
+        if not ok:
+            return
+
+        payload = profiles.get(choice, {})
+        planned_lines = payload.get("planned_lines", {})
+
+        self._planned.clear()
+        for k, v in planned_lines.items():
+            self._planned.set_line(k, v)
+        self._render_planned()
+
+        self._set_status(f"Loaded profile '{choice}' for {self._device_display_name()}.", can_reconnect=True)
+
+    # -------------------------
+    # Device autodetect
+    # -------------------------
+
+    def _startup_autodetect(self) -> None:
+        devices = detect_supported_devices(SUPPORTED_DEVICES)
+
+        if len(devices) == 0:
+            self.device_manager = None
+            self._set_idle_mode()
+            self._set_status("No supported device detected.", can_reconnect=True)
+            return
+
+        if len(devices) == 1:
+            selected = devices[0]
+            dm = DeviceManager(selected)
+            if dm.connect():
+                self.device_manager = dm
+                self._set_editing_mode()
+                self._set_status(f"Connected: {selected.name}", can_reconnect=True)
+                return
+
+            self.device_manager = None
+            self._set_idle_mode()
+            self._set_status("Connection failed.", can_reconnect=True)
+            return
+
+        labels = [d.name for d in devices]
+        choice, ok = QInputDialog.getItem(
+            self, "Select device", "Multiple supported devices detected. Choose one.", labels, 0, False
+        )
+        if not ok:
+            self.device_manager = None
+            self._set_idle_mode()
+            self._set_status("Device selection canceled.", can_reconnect=True)
+            return
+
+        selected = devices[labels.index(choice)]
+        dm = DeviceManager(selected)
+        if dm.connect():
+            self.device_manager = dm
+            self._set_editing_mode()
+            self._set_status(f"Connected: {selected.name}", can_reconnect=True)
+        else:
+            self.device_manager = None
+            self._set_idle_mode()
+            err = dm.last_error or "Unknown error"
+            self._set_status(f"Connection failed: {err}", can_reconnect=True)
+            return
+
+        self.device_manager = None
+        self._set_idle_mode()
+        self._set_status("Connection failed.", can_reconnect=True)
+
+    # -------------------------
+    # Reconnect modal logic
+    # -------------------------
+
+    def _on_reconnect_clicked(self) -> None:
+        if self.device_manager is None or not getattr(self.device_manager, "connected", False):
+            self._startup_autodetect()
+            return
+
+        dev_name = self._device_display_name()
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("Reconnect device?")
+        msg.setText(f"{dev_name} is currently connected.")
+        msg.setInformativeText(
+            "Abort current connection?\n"
+            "All planned (not confirmed) changes will be cleared.\n"
+            "Save a profile first if you want to keep them."
+        )
+
+        cancel_btn = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        abort_btn = msg.addButton("Abort connection", QMessageBox.ButtonRole.DestructiveRole)
+        msg.setDefaultButton(cancel_btn)
+
+        msg.exec()
+
+        if msg.clickedButton() is abort_btn:
+            self._abort_connection_and_redetect()
+
+    def _abort_connection_and_redetect(self) -> None:
+        if self.device_manager is not None:
+            try:
+                if hasattr(self.device_manager, "disconnect"):
+                    self.device_manager.disconnect()
+            except Exception:
+                pass
+
+        self.device_manager = None
+
+        self._planned.clear()
+        self._render_planned()
+
+        self._set_idle_mode()
+        self._set_status("Disconnected. Ready to reconnect.", can_reconnect=True)
+
+        self._startup_autodetect()
+
+    # -------------------------
+    # Planned rendering
+    # -------------------------
+
+    def _render_planned(self) -> None:
+        self.right.set_planned_text(self._planned.render())
 
     def _set_planned_line(self, key: str, text: str) -> None:
         self._planned.set_line(key, text)
         self._render_planned()
 
-    def _render_planned(self) -> None:
-        self.planned_text.setPlainText(self._planned.render())
-
-    # ------------------------------------------------------------------
-    # Layout
-    # ------------------------------------------------------------------
-
-    def _apply_min_window_width(self) -> None:
-        tabs_min = self.tabs.min_width_for_titles()
-        right_min = self._right_col.minimumSizeHint().width()
-
-        layout = self.centralWidget().layout()
-        margins = layout.contentsMargins()
-        spacing = layout.spacing()
-
-        total = margins.left() + margins.right() + spacing + tabs_min + right_min
-        self.setMinimumWidth(total)
-
-    def _build_left_column(self) -> QWidget:
-        left_col = QWidget(self)
-        left_layout = QVBoxLayout(left_col)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(10)
-
-        self.tabs = TabsPanel(left_col)
-
-        # --- Routing ---
-        routing = RoutingTab(left_col)
-        routing.route_changed.connect(self._on_route_changed)
-        self.tabs.add_tab(routing, "Routing")
-
-        # --- Monitoring ---
-        monitoring = MonitoringTab(left_col)
-        monitoring.monitor_changed.connect(self._on_monitor_changed)
-        self.tabs.add_tab(monitoring, "Monitoring")
-
-        # --- Inputs ---
-        inputs = InputsTab(left_col)
-        inputs.input_changed.connect(self._on_input_changed)
-        self.tabs.add_tab(inputs, "Inputs")
-
-        separator = QFrame(left_col)
-        separator.setProperty("role", "sectionSeparator")
-        separator.setFrameShape(QFrame.Shape.HLine)
-
-        # --- PowerSave panel ---
-        self.powersave_panel = QFrame(left_col)
-        powersave_layout = QHBoxLayout(self.powersave_panel)
-        powersave_layout.setContentsMargins(8, 6, 8, 6)
-        powersave_layout.setSpacing(8)
-
-        powersave_title = QLabel("PowerSave", self.powersave_panel)
-        powersave_title.setProperty("role", "heading")
-
-        powersave_enabled = QLabel("Enabled", self.powersave_panel)
-        powersave_enabled.setProperty("role", "heading")
-
-        self.powersave_toggle = QCheckBox(self.powersave_panel)
-        self.powersave_toggle.setChecked(False)
-        self.powersave_toggle.toggled.connect(self._on_powersave_toggled)
-
-        powersave_layout.addWidget(powersave_title)
-        powersave_layout.addStretch(1)
-        powersave_layout.addWidget(powersave_enabled)
-        powersave_layout.addWidget(self.powersave_toggle)
-
-        left_layout.addWidget(self.tabs, 1)
-        left_layout.addWidget(separator, 0)
-        left_layout.addWidget(self.powersave_panel, 0)
-
-        return left_col
-
-    def _build_right_column(self) -> QWidget:
-        right_col = QWidget(self)
-        self._right_col = right_col
-
-        right_layout = QVBoxLayout(right_col)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(10)
-
-        planned_label = QLabel("Planned changes", right_col)
-        self.planned_text = QTextEdit(right_col)
-        self.planned_text.setReadOnly(True)
-
-        current_label = QLabel("Current device state", right_col)
-        self.current_state_text = QTextEdit(right_col)
-        self.current_state_text.setReadOnly(True)
-        self.current_state_text.setPlainText("Not loaded yet.")
-
-        buttons_row = QWidget(right_col)
-        buttons_layout = QHBoxLayout(buttons_row)
-        buttons_layout.setContentsMargins(0, 0, 0, 0)
-        buttons_layout.setSpacing(8)
-
-        self.plan_btn = QPushButton("Plan to apply", buttons_row)
-        self.confirm_btn = QPushButton("Confirm changes", buttons_row)
-        self.cancel_btn = QPushButton("Cancel", buttons_row)
-
-        self.plan_btn.clicked.connect(self._set_planned_mode)
-        self.cancel_btn.clicked.connect(self._set_editing_mode)
-
-        buttons_layout.addWidget(self.plan_btn)
-        buttons_layout.addWidget(self.confirm_btn)
-        buttons_layout.addWidget(self.cancel_btn)
-
-        right_layout.addWidget(planned_label, 0)
-        right_layout.addWidget(self.planned_text, 1)
-        right_layout.addWidget(current_label, 0)
-        right_layout.addWidget(self.current_state_text, 1)
-        right_layout.addWidget(buttons_row, 0)
-
-        return right_col
-
-    # ------------------------------------------------------------------
-    # Signal handlers (UI-only)
-    # ------------------------------------------------------------------
+    # -------------------------
+    # UI handlers (UI-only)
+    # -------------------------
 
     def _on_monitor_changed(self, inp: str, mode: str) -> None:
         label = MONITORING_INPUT_LABELS.get(inp, inp)
@@ -212,23 +312,42 @@ class MainWindow(QMainWindow):
         mode = "ON" if enabled else "OFF"
         self._set_planned_line("POWERSAVE", f"PowerSave: {mode}")
 
-    # ------------------------------------------------------------------
+    # -------------------------
     # Modes
-    # ------------------------------------------------------------------
+    # -------------------------
 
     def _set_editing_mode(self) -> None:
-        self.tabs.setEnabled(True)
-        self.powersave_panel.setEnabled(True)
-        self.plan_btn.setEnabled(True)
-        self.confirm_btn.setEnabled(False)
-        self.cancel_btn.setEnabled(False)
+        self.left.set_editable(True)
+        self.right.set_buttons(plan=True, confirm=False, cancel=False)
+        self.status.set_profiles_enabled(True)
 
     def _set_planned_mode(self) -> None:
-        self.tabs.setEnabled(False)
-        self.powersave_panel.setEnabled(False)
-        self.plan_btn.setEnabled(False)
-        self.confirm_btn.setEnabled(True)
-        self.cancel_btn.setEnabled(True)
+        self.left.set_editable(False)
+        self.right.set_buttons(plan=False, confirm=True, cancel=True)
+        self.status.set_profiles_enabled(True)
+
+    def _set_idle_mode(self) -> None:
+        self.left.set_editable(False)
+        self.right.set_buttons(plan=False, confirm=False, cancel=False)
+        self.status.set_profiles_enabled(False)
+
+    # -------------------------
+    # Status + sizing
+    # -------------------------
+
+    def _set_status(self, text: str, *, can_reconnect: bool = True) -> None:
+        self.status.set_status(text)
+        self.status.set_reconnect_enabled(can_reconnect)
+
+    def _apply_min_window_width(self) -> None:
+        tabs_min = self.left.min_width_for_titles()
+        right_min = self.right.minimumSizeHint().width()
+
+        layout = self.centralWidget().layout()
+        margins = layout.contentsMargins()
+
+        total = margins.left() + margins.right() + 12 + tabs_min + right_min
+        self.setMinimumWidth(total)
 
 
 def main() -> int:
@@ -240,30 +359,6 @@ def main() -> int:
 
     window = MainWindow()
     window.show()
-    devices_onboard = detect_supported_devices(SUPPORTED_DEVICES)
-    if len(devices_onboard) == 1:
-        manager = DeviceManager(devices_onboard[0])
-        manager.connect()
-
-    elif len(devices_onboard) > 1:
-        labels = [d.name for d in devices_onboard]
-
-        choice, ok = QInputDialog.getItem(
-        window,
-        "Select device",
-        "Multiple supported devices detected. Choose one.",
-        labels,
-        0,
-        False,
-        )
-
-        if ok:
-            idx = labels.index(choice)
-            manager = DeviceManager(devices_onboard[idx])
-            manager.connect()
-
-    else:
-        pass
 
     return app.exec()
 
