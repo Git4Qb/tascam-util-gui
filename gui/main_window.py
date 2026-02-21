@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         self.right.plan_clicked.connect(self._set_planned_mode)
         self.right.cancel_clicked.connect(self._set_editing_mode)
         # confirm_clicked stays for later (apply-to-device)
-        # self.right.confirm_clicked.connect(self._on_confirm_clicked)
+        self.right.confirm_clicked.connect(self._on_confirm_clicked)
 
         self.status.reconnect_clicked.connect(self._on_reconnect_clicked)
         self.status.save_profile_clicked.connect(self._on_save_profile_clicked)
@@ -396,6 +396,156 @@ class MainWindow(QMainWindow):
     def _apply_device_state_to_gui(self, state: DeviceState) -> None:
         self.right.set_current_state_text(self._format_device_state(state))
         self.left.set_from_device_state(state)
+
+    def _device_set_powersave(self, enabled: bool) -> None:
+        """
+        Uses DeviceManager API if it exists, otherwise falls back to protocol.
+        """
+        dm = self.device_manager
+        if dm is None:
+            return
+
+        if hasattr(dm, "set_powersave"):
+            dm.set_powersave(enabled)
+            return
+
+        # fallback: direct protocol call if DeviceManager doesn’t wrap it
+        from core import protocol
+        protocol.write_byte(dm.transport, protocol.COMMAND_POWERSAVE, 0, 1 if enabled else 0)
+
+    def _device_set_input_enable(self, input_num: int, enabled: bool) -> None:
+        dm = self.device_manager
+        if dm is None:
+            return
+
+        idx = input_num - 1  # IN1->0
+        if hasattr(dm, "set_input_enable"):
+            dm.set_input_enable(idx, enabled)
+            return
+
+        from core import protocol
+        protocol.write_byte(dm.transport, protocol.COMMAND_INPUT_ENABLE, idx, 1 if enabled else 0)
+
+    def _device_set_monitoring(self, pair: str, mono: bool) -> None:
+        dm = self.device_manager
+        if dm is None:
+            return
+
+        idx = 0 if pair == "IN12" else 1
+        value = 0 if mono else 1
+
+        if hasattr(dm, "set_monitoring_mode"):
+            dm.set_monitoring_mode(idx, value)
+            return
+
+        from core import protocol
+        protocol.write_byte(dm.transport, protocol.COMMAND_MONITORING_MODE, idx, value)
+
+    def _device_set_routing(self, dest: str, source: str) -> None:
+        dm = self.device_manager
+        if dm is None:
+            return
+
+        idx = 0 if dest == "LINE12" else 1
+        src_to_val = {"MIX": 0, "OUT12": 1, "OUT34": 2}
+        value = src_to_val.get(source, 0)
+
+        if hasattr(dm, "set_routing"):
+            dm.set_routing(idx, value)
+            return
+
+        from core import protocol
+        protocol.write_byte(dm.transport, protocol.COMMAND_ROUTING, idx, value)
+
+
+def _on_confirm_clicked(self) -> None:
+    """
+    Apply planned changes to device, then re-read state and clear plan.
+    """
+    if self.device_manager is None or not getattr(self.device_manager, "connected", False):
+        self._set_status("No device connected.", can_reconnect=True)
+        return
+
+    # 1) Apply plan to device
+    try:
+        self._apply_planned_changes_to_device()
+    except Exception as e:
+        self._set_status(f"Apply failed: {e}", can_reconnect=True)
+        return
+
+    # 2) Clear plan + back to editing
+    self._planned.clear()
+    self._render_planned()
+    self._set_editing_mode()
+    self._set_status("Applied changes.", can_reconnect=True)
+
+    # 3) Refresh device state (truth)
+    state = self.device_manager.read_state()
+    if state is not None:
+        self._apply_device_state_to_gui(state)
+
+
+def _apply_planned_changes_to_device(self) -> None:
+    """
+    Translate PlannedChanges.lines into actual device commands.
+    """
+    dm = self.device_manager
+    if dm is None:
+        return
+
+    lines = dict(self._planned.lines)
+
+    # --- PowerSave ---
+    # Your planned line looks like: "PowerSave: ON|OFF"
+    if "POWERSAVE" in lines:
+        enabled = "ON" in lines["POWERSAVE"].upper()
+        self._device_set_powersave(enabled)
+
+    # --- Inputs ---
+    # Planned keys: IN1..IN4
+    for i in range(1, 5):
+        key = f"IN{i}"
+        if key in lines:
+            enabled = "ON" in lines[key].upper()
+            self._device_set_input_enable(i, enabled)
+
+    # --- Monitoring ---
+    # Keys: IN12 / IN34 (from MonitoringTab signal)
+    if "IN12" in lines:
+        mono = "MONO" in lines["IN12"].upper()
+        self._device_set_monitoring("IN12", mono)
+
+    if "IN34" in lines:
+        mono = "MONO" in lines["IN34"].upper()
+        self._device_set_monitoring("IN34", mono)
+
+    # --- Routing ---
+    # Keys: LINE12 / LINE34
+    if "LINE12" in lines:
+        src = self._extract_routing_source(lines["LINE12"])
+        self._device_set_routing("LINE12", src)
+
+    if "LINE34" in lines:
+        src = self._extract_routing_source(lines["LINE34"])
+        self._device_set_routing("LINE34", src)
+
+
+def _extract_routing_source(self, planned_text: str) -> str:
+    """
+    planned_text example: "Routing Line 1/2: Monitor Mix"
+    Return: "MIX" | "OUT12" | "OUT34"
+    """
+    t = planned_text.upper()
+    if "MONITOR MIX" in t:
+        return "MIX"
+    if "OUT 1/2" in t or "1/2" in t and "COMPUTER" in t:
+        return "OUT12"
+    if "OUT 3/4" in t or "3/4" in t and "COMPUTER" in t:
+        return "OUT34"
+    # safe default
+    return "MIX"
+
+
 
 
 def main() -> int:

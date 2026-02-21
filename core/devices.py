@@ -19,6 +19,13 @@ US4X4 = DeviceDescriptor(
     product_id = 0x804E
 )
 
+# Placeholder until find the real PID for US-2x2HR
+US2X2HR = DeviceDescriptor(
+    name = "Tascam US-2X2HR",
+    vendor_id = 0x0644,
+    product_id = 0x0000
+)
+
 # Placeholder until find the real PID for US-4x4HR
 US4X4HR = DeviceDescriptor(
     name = "Tascam US-4X4HR",
@@ -33,4 +40,5 @@ US16X08 = DeviceDescriptor(
     product_id = 0x0000
 )
 
-SUPPORTED_DEVICES: tuple[DeviceDescriptor, ...] = (US4X4, US4X4HR, US16X08)
+SUPPORTED_DEVICES: tuple[DeviceDescriptor, ...] = (US4X4, ...)
+PLANNED_DEVICES: tuple[DeviceDescriptor, ...] = (US2X2HR, US4X4HR, US16X08)

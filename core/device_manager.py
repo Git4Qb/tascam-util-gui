@@ -89,3 +89,30 @@ class DeviceManager:
             self.status = DeviceStatus.ERROR
             self.last_error = "Communication failed during read"
             return None
+
+    def set_powersave(self, enabled: bool) -> None:
+        if not self.connected or self._transport is None:
+            raise RuntimeError("Device not connected")
+        from core import protocol
+        protocol.write_byte(self._transport, protocol.COMMAND_POWERSAVE, 0, 1 if enabled else 0)
+
+
+    def set_input_enable(self, idx: int, enabled: bool) -> None:
+        if not self.connected or self._transport is None:
+            raise RuntimeError("Device not connected")
+        from core import protocol
+        protocol.write_byte(self._transport, protocol.COMMAND_INPUT_ENABLE, idx, 1 if enabled else 0)
+
+
+    def set_monitoring_mode(self, idx: int, mode: int) -> None:
+        if not self.connected or self._transport is None:
+            raise RuntimeError("Device not connected")
+        from core import protocol
+        protocol.write_byte(self._transport, protocol.COMMAND_MONITORING_MODE, idx, int(mode))
+
+
+    def set_routing(self, idx: int, route: int) -> None:
+        if not self.connected or self._transport is None:
+            raise RuntimeError("Device not connected")
+        from core import protocol
+        protocol.write_byte(self._transport, protocol.COMMAND_ROUTING, idx, int(route))

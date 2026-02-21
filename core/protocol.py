@@ -21,6 +21,7 @@ _PREP_WVALUE = 0x0100
 _PREP_WINDEX = 0x2900
 
 _READ_BM = 0xC0
+_WRITE_BM = 0x40  # vendor, host-to-device (OUT)
 
 
 def read_byte(transport: Transport, command: int, index: int) -> int:
@@ -37,3 +38,20 @@ def read_byte(transport: Transport, command: int, index: int) -> int:
 
     data = transport.ctrl_transfer_in(CtrlRequest(_READ_BM, command, 0, index, 1))
     return data[0]
+def write_byte(transport: Transport, command: int, index: int, value: int) -> None:
+    """
+    Write a single byte parameter to the device.
+
+    Mirrors read_byte() sequencing:
+      - prep ctrl_transfer (len 16)
+      - prep ctrl_transfer (len 50)
+      - write ctrl_transfer (len 1 payload)
+    """
+    v = int(value) & 0xFF
+
+    # Same prep seen in captures before reads — keep it consistent for writes too.
+    transport.ctrl_transfer_in(CtrlRequest(_PREP_BM, _PREP_B, _PREP_WVALUE, _PREP_WINDEX, 16))
+    transport.ctrl_transfer_in(CtrlRequest(_PREP_BM, _PREP_B, _PREP_WVALUE, _PREP_WINDEX, 50))
+
+    # Send 1 byte payload to the device.
+    transport.ctrl_transfer_out(CtrlRequest(_WRITE_BM, command, 0, index, bytes([v])))
