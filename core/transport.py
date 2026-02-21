@@ -35,7 +35,8 @@ class CtrlRequest:
     b_request: int
     w_value: int
     w_index: int
-    length: int
+    length: int = 0
+    data: bytes = b""
     timeout_ms: int = 1000
 
 
@@ -49,9 +50,7 @@ class Transport(Protocol):
     def is_open(self) -> bool: ...
 
     def ctrl_transfer_in(self, req: CtrlRequest) -> bytes: ...
-    def ctrl_transfer_out(self, bm_request_type: int, b_request: int,
-                          w_value: int, w_index: int, data: bytes,
-                          timeout_ms: int = 1000) -> int: ...
+    def ctrl_transfer_out(self, req: CtrlRequest) -> int: ...
 
 
 # --- Fake transport for tests/dev without device ------------------------------
@@ -86,13 +85,11 @@ class FakeTransport:
         data = self._replies.get(key, b"\x00" * req.length)
         return data[:req.length]
 
-    def ctrl_transfer_out(self, bm_request_type: int, b_request: int,
-                          w_value: int, w_index: int, data: bytes,
-                          timeout_ms: int = 1000) -> int:
+    def ctrl_transfer_out(self, req: CtrlRequest) -> int:
         if not self._open:
             raise Disconnected("FakeTransport is not open")
         # pretend we wrote all bytes
-        return len(data)
+        return len(req.data)
 
 
 
@@ -201,24 +198,17 @@ class PyUsbTransport:
         except usb.USBError as e:
             raise TransportError(str(e)) from e
 
-    def ctrl_transfer_out(
-        self,
-        bm_request_type: int,
-        b_request: int,
-        w_value: int,
-        w_index: int,
-        data: bytes,
-        timeout_ms: int = 1000,
-    ) -> int:
+    def ctrl_transfer_out(self, req: CtrlRequest) -> int:
         dev = self._require_open()
         try:
             return dev.ctrl_transfer(
-                bm_request_type,
-                b_request,
-                w_value,
-                w_index,
-                data,
-                timeout_ms,
+                req.bm_request_type,
+                req.b_request,
+                req.w_value,
+                req.w_index,
+                req.data,
+                req.timeout_ms,
             )
+
         except usb.USBError as e:
             raise TransportError(str(e)) from e

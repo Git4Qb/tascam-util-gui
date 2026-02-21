@@ -54,4 +54,4 @@ def write_byte(transport: Transport, command: int, index: int, value: int) -> No
     transport.ctrl_transfer_in(CtrlRequest(_PREP_BM, _PREP_B, _PREP_WVALUE, _PREP_WINDEX, 50))
 
     # Send 1 byte payload to the device.
-    transport.ctrl_transfer_out(CtrlRequest(_WRITE_BM, command, 0, index, bytes([v])))
+    transport.ctrl_transfer_out(CtrlRequest(_WRITE_BM, command, 0, index, data=bytes([v])))
