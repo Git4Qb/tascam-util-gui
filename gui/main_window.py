@@ -93,37 +93,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._apply_min_window_width)
         QTimer.singleShot(0, self._startup_autodetect)
 
-    # -------------------------
-    # Profiles
-    # -------------------------
 
-    def _profiles_path(self) -> Path:
-        base = Path(__file__).resolve().parent
-        d = base / self.PROFILE_DIRNAME
-        d.mkdir(parents=True, exist_ok=True)
-        return d / self.PROFILE_FILENAME
-
-    def _load_profiles(self) -> dict:
-        path = self._profiles_path()
-        if not path.exists():
-            return {"devices": {}}
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            return {"devices": {}}
-
-    def _save_profiles(self, data: dict) -> None:
-        self._profiles_path().write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
-    def _device_key(self) -> str:
-        if self.device_manager is not None:
-            desc = getattr(self.device_manager, "descriptor", None)
-            if desc is not None:
-                return f"{desc.vendor_id:04x}:{desc.product_id:04x}"
-        return "offline"
 
     def _device_display_name(self) -> str:
         if self.device_manager is not None:
@@ -458,92 +428,92 @@ class MainWindow(QMainWindow):
         protocol.write_byte(dm.transport, protocol.COMMAND_ROUTING, idx, value)
 
 
-def _on_confirm_clicked(self) -> None:
-    """
-    Apply planned changes to device, then re-read state and clear plan.
-    """
-    if self.device_manager is None or not getattr(self.device_manager, "connected", False):
-        self._set_status("No device connected.", can_reconnect=True)
-        return
+    def _on_confirm_clicked(self) -> None:
+        """
+        Apply planned changes to device, then re-read state and clear plan.
+        """
+        if self.device_manager is None or not getattr(self.device_manager, "connected", False):
+            self._set_status("No device connected.", can_reconnect=True)
+            return
 
-    # 1) Apply plan to device
-    try:
-        self._apply_planned_changes_to_device()
-    except Exception as e:
-        self._set_status(f"Apply failed: {e}", can_reconnect=True)
-        return
+        # 1) Apply plan to device
+        try:
+            self._apply_planned_changes_to_device()
+        except Exception as e:
+            self._set_status(f"Apply failed: {e}", can_reconnect=True)
+            return
 
-    # 2) Clear plan + back to editing
-    self._planned.clear()
-    self._render_planned()
-    self._set_editing_mode()
-    self._set_status("Applied changes.", can_reconnect=True)
+        # 2) Clear plan + back to editing
+        self._planned.clear()
+        self._render_planned()
+        self._set_editing_mode()
+        self._set_status("Applied changes.", can_reconnect=True)
 
-    # 3) Refresh device state (truth)
-    state = self.device_manager.read_state()
-    if state is not None:
-        self._apply_device_state_to_gui(state)
-
-
-def _apply_planned_changes_to_device(self) -> None:
-    """
-    Translate PlannedChanges.lines into actual device commands.
-    """
-    dm = self.device_manager
-    if dm is None:
-        return
-
-    lines = dict(self._planned.lines)
-
-    # --- PowerSave ---
-    # Your planned line looks like: "PowerSave: ON|OFF"
-    if "POWERSAVE" in lines:
-        enabled = "ON" in lines["POWERSAVE"].upper()
-        self._device_set_powersave(enabled)
-
-    # --- Inputs ---
-    # Planned keys: IN1..IN4
-    for i in range(1, 5):
-        key = f"IN{i}"
-        if key in lines:
-            enabled = "ON" in lines[key].upper()
-            self._device_set_input_enable(i, enabled)
-
-    # --- Monitoring ---
-    # Keys: IN12 / IN34 (from MonitoringTab signal)
-    if "IN12" in lines:
-        mono = "MONO" in lines["IN12"].upper()
-        self._device_set_monitoring("IN12", mono)
-
-    if "IN34" in lines:
-        mono = "MONO" in lines["IN34"].upper()
-        self._device_set_monitoring("IN34", mono)
-
-    # --- Routing ---
-    # Keys: LINE12 / LINE34
-    if "LINE12" in lines:
-        src = self._extract_routing_source(lines["LINE12"])
-        self._device_set_routing("LINE12", src)
-
-    if "LINE34" in lines:
-        src = self._extract_routing_source(lines["LINE34"])
-        self._device_set_routing("LINE34", src)
+        # 3) Refresh device state (truth)
+        state = self.device_manager.read_state()
+        if state is not None:
+            self._apply_device_state_to_gui(state)
 
 
-def _extract_routing_source(self, planned_text: str) -> str:
-    """
-    planned_text example: "Routing Line 1/2: Monitor Mix"
-    Return: "MIX" | "OUT12" | "OUT34"
-    """
-    t = planned_text.upper()
-    if "MONITOR MIX" in t:
+    def _apply_planned_changes_to_device(self) -> None:
+        """
+        Translate PlannedChanges.lines into actual device commands.
+        """
+        dm = self.device_manager
+        if dm is None:
+            return
+
+        lines = dict(self._planned.lines)
+
+        # --- PowerSave ---
+        # Your planned line looks like: "PowerSave: ON|OFF"
+        if "POWERSAVE" in lines:
+            enabled = "ON" in lines["POWERSAVE"].upper()
+            self._device_set_powersave(enabled)
+
+        # --- Inputs ---
+        # Planned keys: IN1..IN4
+        for i in range(1, 5):
+            key = f"IN{i}"
+            if key in lines:
+                enabled = "ON" in lines[key].upper()
+                self._device_set_input_enable(i, enabled)
+
+        # --- Monitoring ---
+        # Keys: IN12 / IN34 (from MonitoringTab signal)
+        if "IN12" in lines:
+            mono = "MONO" in lines["IN12"].upper()
+            self._device_set_monitoring("IN12", mono)
+
+        if "IN34" in lines:
+            mono = "MONO" in lines["IN34"].upper()
+            self._device_set_monitoring("IN34", mono)
+
+        # --- Routing ---
+        # Keys: LINE12 / LINE34
+        if "LINE12" in lines:
+            src = self._extract_routing_source(lines["LINE12"])
+            self._device_set_routing("LINE12", src)
+
+        if "LINE34" in lines:
+            src = self._extract_routing_source(lines["LINE34"])
+            self._device_set_routing("LINE34", src)
+
+
+    def _extract_routing_source(self, planned_text: str) -> str:
+        """
+        planned_text example: "Routing Line 1/2: Monitor Mix"
+        Return: "MIX" | "OUT12" | "OUT34"
+        """
+        t = planned_text.upper()
+        if "MONITOR MIX" in t:
+            return "MIX"
+        if "OUT 1/2" in t or "1/2" in t and "COMPUTER" in t:
+            return "OUT12"
+        if "OUT 3/4" in t or "3/4" in t and "COMPUTER" in t:
+            return "OUT34"
+        # safe default
         return "MIX"
-    if "OUT 1/2" in t or "1/2" in t and "COMPUTER" in t:
-        return "OUT12"
-    if "OUT 3/4" in t or "3/4" in t and "COMPUTER" in t:
-        return "OUT34"
-    # safe default
-    return "MIX"
 
 
 
