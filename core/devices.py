@@ -40,5 +40,5 @@ US16X08 = DeviceDescriptor(
     product_id = 0x0000
 )
 
-SUPPORTED_DEVICES: tuple[DeviceDescriptor, ...] = (US4X4, ...)
+SUPPORTED_DEVICES: tuple[DeviceDescriptor, ...] = (US4X4,)
 PLANNED_DEVICES: tuple[DeviceDescriptor, ...] = (US2X2HR, US4X4HR, US16X08)

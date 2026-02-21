@@ -30,6 +30,12 @@ from gui.widgets.planned_keys import PLANNED_ORDER
 from gui.widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
 
 from gui.tabs.routing_tab import RouteSelection
+from core.device_parameters import (
+    MonitoringMode,
+    MonitoringPair,
+    RoutingDest,
+    RoutingSource,
+)
 
 
 class MainWindow(QMainWindow):
@@ -271,31 +277,60 @@ class MainWindow(QMainWindow):
     def _render_planned(self) -> None:
         self.right.set_planned_text(self._planned.render())
 
-    def _set_planned_line(self, key: str, text: str) -> None:
-        self._planned.set_line(key, text)
+    def _set_planned(self, key: str, text: str, payload: dict) -> None:
+        self._planned.set(key, text, payload)
         self._render_planned()
 
     # -------------------------
     # UI handlers (UI-only)
     # -------------------------
 
-    def _on_monitor_changed(self, inp: str, mode: str) -> None:
-        label = MONITORING_INPUT_LABELS.get(inp, inp)
-        self._set_planned_line(inp, f"Monitoring {label}: {mode}")
+    def _on_monitor_changed(self, pair: MonitoringPair, mode: MonitoringMode):
+        label = MONITORING_INPUT_LABELS[pair]
+        self._set_planned(
+            pair,
+            f"Monitoring {label}: {mode.name.title()}",
+            {"op": "monitoring_mode", "idx": pair, "mode": mode},
+        )
 
     def _on_route_changed(self, sel: RouteSelection) -> None:
         source_label = ROUTING_SOURCE_LABELS.get(sel.source, sel.source)
-        if sel.dest == "LINE12":
-            self._set_planned_line("LINE12", f"Routing Line 1/2: {source_label}")
-        elif sel.dest == "LINE34":
-            self._set_planned_line("LINE34", f"Routing Line 3/4: {source_label}")
+
+        dest = RoutingDest.LINE12 if sel.dest == "LINE12" else RoutingDest.LINE34
+
+        # sel.source is your GUI key: "MIX" / "OUT12" / "OUT34"
+        if sel.source == "MIX":
+            src = RoutingSource.MONITOR_MIX
+        elif sel.source == "OUT12":
+            src = RoutingSource.PC_12
+        else:
+            src = RoutingSource.PC_34
+
+        text = f"Routing Line {'1/2' if dest == RoutingDest.LINE12 else '3/4'}: {source_label}"
+
+        self._set_planned(
+            sel.dest,
+            text,
+            {"op": "routing", "idx": dest, "route": src},
+        )
 
     def _on_input_changed(self, inp: str, mode: str) -> None:
-        self._set_planned_line(inp, f"Input {inp}: {mode}")
+        # inp: "IN1".."IN4", mode: "ON"/"OFF" or similar
+        idx = int(inp[2:]) - 1
+        enabled = (mode.upper() in ("ON", "ENABLED", "TRUE"))
+        self._set_planned(
+            inp,
+            f"Input {inp}: {mode}",
+            {"op": "input_enable", "idx": idx, "enabled": enabled},
+        )
 
     def _on_powersave_toggled(self, enabled: bool) -> None:
         mode = "ON" if enabled else "OFF"
-        self._set_planned_line("POWERSAVE", f"PowerSave: {mode}")
+        self._set_planned(
+            "POWERSAVE",
+            f"PowerSave: {mode}",
+            {"op": "powersave", "enabled": enabled},
+        )
 
     # -------------------------
     # Modes
@@ -367,65 +402,6 @@ class MainWindow(QMainWindow):
         self.right.set_current_state_text(self._format_device_state(state))
         self.left.set_from_device_state(state)
 
-    def _device_set_powersave(self, enabled: bool) -> None:
-        """
-        Uses DeviceManager API if it exists, otherwise falls back to protocol.
-        """
-        dm = self.device_manager
-        if dm is None:
-            return
-
-        if hasattr(dm, "set_powersave"):
-            dm.set_powersave(enabled)
-            return
-
-        # fallback: direct protocol call if DeviceManager doesn’t wrap it
-        from core import protocol
-        protocol.write_byte(dm.transport, protocol.COMMAND_POWERSAVE, 0, 1 if enabled else 0)
-
-    def _device_set_input_enable(self, input_num: int, enabled: bool) -> None:
-        dm = self.device_manager
-        if dm is None:
-            return
-
-        idx = input_num - 1  # IN1->0
-        if hasattr(dm, "set_input_enable"):
-            dm.set_input_enable(idx, enabled)
-            return
-
-        from core import protocol
-        protocol.write_byte(dm.transport, protocol.COMMAND_INPUT_ENABLE, idx, 1 if enabled else 0)
-
-    def _device_set_monitoring(self, pair: str, mono: bool) -> None:
-        dm = self.device_manager
-        if dm is None:
-            return
-
-        idx = 0 if pair == "IN12" else 1
-        value = 0 if mono else 1
-
-        if hasattr(dm, "set_monitoring_mode"):
-            dm.set_monitoring_mode(idx, value)
-            return
-
-        from core import protocol
-        protocol.write_byte(dm.transport, protocol.COMMAND_MONITORING_MODE, idx, value)
-
-    def _device_set_routing(self, dest: str, source: str) -> None:
-        dm = self.device_manager
-        if dm is None:
-            return
-
-        idx = 0 if dest == "LINE12" else 1
-        src_to_val = {"MIX": 0, "OUT12": 1, "OUT34": 2}
-        value = src_to_val.get(source, 0)
-
-        if hasattr(dm, "set_routing"):
-            dm.set_routing(idx, value)
-            return
-
-        from core import protocol
-        protocol.write_byte(dm.transport, protocol.COMMAND_ROUTING, idx, value)
 
 
     def _on_confirm_clicked(self) -> None:
@@ -454,50 +430,25 @@ class MainWindow(QMainWindow):
         if state is not None:
             self._apply_device_state_to_gui(state)
 
-
     def _apply_planned_changes_to_device(self) -> None:
-        """
-        Translate PlannedChanges.lines into actual device commands.
-        """
         dm = self.device_manager
         if dm is None:
             return
 
-        lines = dict(self._planned.lines)
+        for p in self._planned.payloads.values():
+            op = p.get("op")
 
-        # --- PowerSave ---
-        # Your planned line looks like: "PowerSave: ON|OFF"
-        if "POWERSAVE" in lines:
-            enabled = "ON" in lines["POWERSAVE"].upper()
-            self._device_set_powersave(enabled)
+            if op == "powersave":
+                dm.set_powersave(bool(p["enabled"]))
 
-        # --- Inputs ---
-        # Planned keys: IN1..IN4
-        for i in range(1, 5):
-            key = f"IN{i}"
-            if key in lines:
-                enabled = "ON" in lines[key].upper()
-                self._device_set_input_enable(i, enabled)
+            elif op == "input_enable":
+                dm.set_input_enable(int(p["idx"]), bool(p["enabled"]))
 
-        # --- Monitoring ---
-        # Keys: IN12 / IN34 (from MonitoringTab signal)
-        if "IN12" in lines:
-            mono = "MONO" in lines["IN12"].upper()
-            self._device_set_monitoring("IN12", mono)
+            elif op == "monitoring_mode":
+                dm.set_monitoring_mode(int(p["idx"]), int(p["mode"]))
 
-        if "IN34" in lines:
-            mono = "MONO" in lines["IN34"].upper()
-            self._device_set_monitoring("IN34", mono)
-
-        # --- Routing ---
-        # Keys: LINE12 / LINE34
-        if "LINE12" in lines:
-            src = self._extract_routing_source(lines["LINE12"])
-            self._device_set_routing("LINE12", src)
-
-        if "LINE34" in lines:
-            src = self._extract_routing_source(lines["LINE34"])
-            self._device_set_routing("LINE34", src)
+            elif op == "routing":
+                dm.set_routing(int(p["idx"]), int(p["route"]))
 
 
     def _extract_routing_source(self, planned_text: str) -> str:
