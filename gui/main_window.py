@@ -1,7 +1,6 @@
 # gui/main_window.py
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from core.devices import SUPPORTED_DEVICES
 from core.detector import detect_supported_devices
 from core.device_manager import DeviceManager
 from core.device_state import DeviceState
+from core.device_parameters import InputChannel
 
 from gui.layout.left_column import LeftColumnWidget
 from gui.layout.right_column import RightColumnWidget
@@ -27,14 +27,11 @@ from gui.layout.status_bar import StatusBarWidget
 
 from gui.widgets.planned_changes import PlannedChanges
 from gui.widgets.planned_keys import PLANNED_ORDER
-from gui.widgets.ui_text import MONITORING_INPUT_LABELS, ROUTING_SOURCE_LABELS
 
 from gui.tabs.routing_tab import RouteSelection
 from core.device_parameters import (
     MonitoringMode,
     MonitoringPair,
-    RoutingDest,
-    RoutingSource,
 )
 
 
@@ -285,50 +282,39 @@ class MainWindow(QMainWindow):
     # UI handlers (UI-only)
     # -------------------------
 
-    def _on_monitor_changed(self, pair: MonitoringPair, mode: MonitoringMode):
-        label = MONITORING_INPUT_LABELS[pair]
+    def _on_monitor_changed(self, pair: MonitoringPair, mode: MonitoringMode) -> None:
+        # key can stay string for now; later we’ll make keys typed
+        key = f"MONITOR_{pair.name}"
+        text = f"Monitoring {pair.name}: {mode.name.title()}"
         self._set_planned(
-            pair,
-            f"Monitoring {label}: {mode.name.title()}",
+            key,
+            text,
             {"op": "monitoring_mode", "idx": pair, "mode": mode},
         )
 
     def _on_route_changed(self, sel: RouteSelection) -> None:
-        source_label = ROUTING_SOURCE_LABELS.get(sel.source, sel.source)
-
-        dest = RoutingDest.LINE12 if sel.dest == "LINE12" else RoutingDest.LINE34
-
-        # sel.source is your GUI key: "MIX" / "OUT12" / "OUT34"
-        if sel.source == "MIX":
-            src = RoutingSource.MONITOR_MIX
-        elif sel.source == "OUT12":
-            src = RoutingSource.PC_12
-        else:
-            src = RoutingSource.PC_34
-
-        text = f"Routing Line {'1/2' if dest == RoutingDest.LINE12 else '3/4'}: {source_label}"
-
+        key = f"ROUTING_{sel.dest.name}"
+        line_label = "1/2" if sel.dest.name == "LINE12" else "3/4"
+        text = f"Routing Line {line_label}: {sel.source.name}"
         self._set_planned(
-            sel.dest,
+            key,
             text,
-            {"op": "routing", "idx": dest, "route": src},
+            {"op": "routing", "idx": sel.dest, "route": sel.source},
         )
 
-    def _on_input_changed(self, inp: str, mode: str) -> None:
-        # inp: "IN1".."IN4", mode: "ON"/"OFF" or similar
-        idx = int(inp[2:]) - 1
-        enabled = (mode.upper() in ("ON", "ENABLED", "TRUE"))
+    def _on_input_changed(self, ch: InputChannel, enabled: bool) -> None:
+        key = f"INPUT_{ch.name}"
+        text = f"{ch.name}: {'On' if enabled else 'Off'}"
         self._set_planned(
-            inp,
-            f"Input {inp}: {mode}",
-            {"op": "input_enable", "idx": idx, "enabled": enabled},
+            key,
+            text,
+            {"op": "input_enable", "idx": ch, "enabled": enabled},
         )
 
     def _on_powersave_toggled(self, enabled: bool) -> None:
-        mode = "ON" if enabled else "OFF"
         self._set_planned(
             "POWERSAVE",
-            f"PowerSave: {mode}",
+            f"PowerSave: {'On' if enabled else 'Off'}",
             {"op": "powersave", "enabled": enabled},
         )
 

@@ -1,4 +1,12 @@
+# core/device_parameters.py
+
 from enum import IntEnum
+
+class InputChannel(IntEnum):
+    IN1 = 0
+    IN2 = 1
+    IN3 = 2
+    IN4 = 3
 
 
 class RoutingDest(IntEnum):

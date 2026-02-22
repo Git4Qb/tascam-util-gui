@@ -1,5 +1,7 @@
 # gui/tabs/routing_tab.py
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from PySide6.QtCore import Signal
@@ -12,28 +14,28 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.device_parameters import RoutingDest, RoutingSource
+from core.device_state import DeviceState
+
+
 @dataclass(frozen=True)
 class RouteSelection:
-    dest: str    # LINE12 / LINE34
-    source: str  # MIX / OUT12 / OUT34
+    dest: RoutingDest
+    source: RoutingSource
 
 
 class RoutingTab(QWidget):
     """
-    GUI representation of:
-
-        route -s {MIX|OUT12|OUT34} -d {LINE12|LINE34}
-
-    This class does NOT execute commands.
-    It only stores and exposes routing state.
+    UI-only routing controls.
+    Emits route_changed(RouteSelection(dest: RoutingDest, source: RoutingSource))
     """
 
-    route_changed = Signal(object)  # emits RouteSelection
+    route_changed = Signal(object)
 
     SOURCES = [
-        ("Monitor Mix", "MIX"),
-        ("Computer Out 1/2", "OUT12"),
-        ("Computer Out 3/4", "OUT34"),
+        ("Monitor Mix", RoutingSource.MONITOR_MIX),
+        ("Computer Out 1/2", RoutingSource.PC_12),
+        ("Computer Out 3/4", RoutingSource.PC_34),
     ]
 
     def __init__(self, parent=None):
@@ -52,12 +54,10 @@ class RoutingTab(QWidget):
         grid.setHorizontalSpacing(14)
         grid.setVerticalSpacing(12)
 
-        # --- LINE 1/2 ---
         grid.addWidget(QLabel("Line 1/2", card), 0, 0)
         self.combo_line12 = self._make_source_combo(card)
         grid.addWidget(self.combo_line12, 0, 1)
 
-        # --- LINE 3/4 ---
         grid.addWidget(QLabel("Line 3/4", card), 1, 0)
         self.combo_line34 = self._make_source_combo(card)
         grid.addWidget(self.combo_line34, 1, 1)
@@ -68,92 +68,53 @@ class RoutingTab(QWidget):
         layout.addWidget(card)
         layout.addStretch(1)
 
-        # Default values
-        self.set_route("LINE12", "MIX")
-        self.set_route("LINE34", "MIX")
+        # Defaults
+        self.set_route(RoutingDest.LINE12, RoutingSource.MONITOR_MIX)
+        self.set_route(RoutingDest.LINE34, RoutingSource.MONITOR_MIX)
 
-        # Signals
-        self.combo_line12.currentIndexChanged.connect(
-            lambda _: self._emit_change("LINE12")
-        )
-        self.combo_line34.currentIndexChanged.connect(
-            lambda _: self._emit_change("LINE34")
-        )
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
+        self.combo_line12.currentIndexChanged.connect(lambda _: self._emit_change(RoutingDest.LINE12))
+        self.combo_line34.currentIndexChanged.connect(lambda _: self._emit_change(RoutingDest.LINE34))
 
     def _make_source_combo(self, parent: QWidget) -> QComboBox:
         combo = QComboBox(parent)
-        for label, value in self.SOURCES:
-            combo.addItem(label, value)
+        for label, src in self.SOURCES:
+            combo.addItem(label, src)  # store enum in userData
         return combo
 
-    def _emit_change(self, dest: str) -> None:
-        self.route_changed.emit(
-            RouteSelection(dest=dest, source=self.route_for(dest))
-        )
+    def _emit_change(self, dest: RoutingDest) -> None:
+        self.route_changed.emit(RouteSelection(dest=dest, source=self.route_for(dest)))
 
-    # ------------------------------------------------------------------
-    # Public API (state access)
-    # ------------------------------------------------------------------
+    def route_for(self, dest: RoutingDest) -> RoutingSource:
+        combo = self.combo_line12 if dest == RoutingDest.LINE12 else self.combo_line34
+        data = combo.currentData()
+        if not isinstance(data, RoutingSource):
+            # defensive: if Qt gives int back in some edge-case
+            return RoutingSource(int(data))
+        return data
 
-    def route_for(self, dest: str) -> str:
-        if dest == "LINE12":
-            return str(self.combo_line12.currentData())
-        if dest == "LINE34":
-            return str(self.combo_line34.currentData())
-        raise ValueError(f"Unknown dest: {dest}")
-
-    def set_route(self, dest: str, source: str) -> None:
-        if dest == "LINE12":
-            combo = self.combo_line12
-        elif dest == "LINE34":
-            combo = self.combo_line34
-        else:
-            raise ValueError(f"Unknown dest: {dest}")
-
+    def set_route(self, dest: RoutingDest, source: RoutingSource) -> None:
+        combo = self.combo_line12 if dest == RoutingDest.LINE12 else self.combo_line34
         idx = combo.findData(source)
         if idx >= 0:
             combo.setCurrentIndex(idx)
         else:
             raise ValueError(f"Unknown source: {source}")
 
-    def get_routes(self) -> dict[str, str]:
-        """
-        Returns:
-            {
-                "LINE12": "MIX" | "OUT12" | "OUT34",
-                "LINE34": "MIX" | "OUT12" | "OUT34"
-            }
-        """
+    def get_routes(self) -> dict[RoutingDest, RoutingSource]:
         return {
-            "LINE12": self.route_for("LINE12"),
-            "LINE34": self.route_for("LINE34"),
+            RoutingDest.LINE12: self.route_for(RoutingDest.LINE12),
+            RoutingDest.LINE34: self.route_for(RoutingDest.LINE34),
         }
 
-    def set_from_device_state(self, s) -> None:
-        """Apply routing from DeviceState without emitting signals.
-
-        DeviceState.routing holds device enum indices:
-            0 -> Monitor Mix
-            1 -> Computer Out 1/2
-            2 -> Computer Out 3/4
-        """
-        idx_to_source = {
-            0: "MIX",
-            1: "OUT12",
-            2: "OUT34",
-        }
-        line12 = idx_to_source.get(int(s.routing[0]), "MIX") if len(s.routing) > 0 else "MIX"
-        line34 = idx_to_source.get(int(s.routing[1]), "MIX") if len(s.routing) > 1 else "MIX"
+    def set_from_device_state(self, s: DeviceState) -> None:
+        line12 = RoutingSource(int(s.routing[0])) if len(s.routing) > 0 else RoutingSource.MONITOR_MIX
+        line34 = RoutingSource(int(s.routing[1])) if len(s.routing) > 1 else RoutingSource.MONITOR_MIX
 
         self.combo_line12.blockSignals(True)
         self.combo_line34.blockSignals(True)
         try:
-            self.set_route("LINE12", line12)
-            self.set_route("LINE34", line34)
+            self.set_route(RoutingDest.LINE12, line12)
+            self.set_route(RoutingDest.LINE34, line34)
         finally:
             self.combo_line12.blockSignals(False)
             self.combo_line34.blockSignals(False)
