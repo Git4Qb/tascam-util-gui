@@ -1,4 +1,4 @@
-# core/devices.py
+# device_registry.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ class DeviceDescriptor:
     product_id: int
 
 
-""" Supported device descriptors (registry). """
+# Supported device descriptors (registry).
 
 US4X4 = DeviceDescriptor(
     name = "Tascam US-4X4",

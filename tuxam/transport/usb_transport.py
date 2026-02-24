@@ -1,4 +1,4 @@
-# core/transport.py
+# usb_transport.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -43,7 +43,7 @@ class CtrlRequest:
 # --- Transport interface ------------------------------------------------------
 
 class Transport(Protocol):
-    """Minimal contract used by DeviceManager/Protocol/read_state."""
+    """Minimal contract used by device adapters."""
 
     def open(self) -> None: ...
     def close(self) -> None: ...
@@ -97,6 +97,11 @@ class PyUsbTransport:
     """
     Real transport backed by PyUSB.
     Owns the device handle and claimed interfaces.
+
+    Strategy:
+    - Prefer claiming without detaching kernel drivers.
+    - If an interface is busy, detach only that interface and retry claim.
+    - Track detached interfaces and optionally reattach on close (best-effort).
     """
 
     def __init__(self, vendor_id: int, product_id: int) -> None:
@@ -104,14 +109,12 @@ class PyUsbTransport:
         self._product_id = product_id
         self._dev: Optional[usb.core.Device] = None
         self._cfg = None
-        self._claimed = False
+        self._claimed_ifaces: set[int] = set()
+        self._detached_ifaces: set[int] = set()
 
     @staticmethod
     def is_present(vendor_id: int, product_id: int) -> bool:
-        return usb.core.find(
-            idVendor = vendor_id,
-            idProduct = product_id
-        ) is not None
+        return usb.core.find(idVendor=vendor_id, idProduct=product_id) is not None
 
     def open(self) -> None:
         dev = usb.core.find(idVendor=self._vendor_id, idProduct=self._product_id)
@@ -119,22 +122,36 @@ class PyUsbTransport:
             raise DeviceNotFound("USB device not found")
 
         try:
-            # # Ensure a configuration is selected
-            # dev.set_configuration()
-            # Detach kernel drivers for interfaces that actually exist in this config
-            for iface in range(0,8):
-                try:
-                    if dev.is_kernel_driver_active(iface):
-                        dev.detach_kernel_driver(iface)
-                except (NotImplementedError, usb.USBError):
-                    # Some backends/permissions may not support this check cleanly.
-                    pass
+            # Best-effort: ensure a configuration is selected.
+            # Some backends/devices already have an active configuration.
+            try:
+                dev.set_configuration()
+            except usb.USBError:
+                pass
 
             cfg = dev.get_active_configuration()
 
-            # Claim only existing interfaces (no hardcoded ranges / altsettings)
+            # Try to claim each interface. Detach only if needed.
             for intf in cfg:
-                usb.util.claim_interface(dev, intf.bInterfaceNumber)
+                iface_num = intf.bInterfaceNumber
+
+                try:
+                    usb.util.claim_interface(dev, iface_num)
+                    self._claimed_ifaces.add(iface_num)
+                    continue
+                except usb.USBError:
+                    # Claim failed; try detaching kernel driver and retry claim.
+                    try:
+                        if dev.is_kernel_driver_active(iface_num):
+                            dev.detach_kernel_driver(iface_num)
+                            self._detached_ifaces.add(iface_num)
+                    except (NotImplementedError, usb.USBError):
+                        # Backend doesn't support kernel driver ops or permission issues.
+                        pass
+
+                    # Retry claim after detach attempt
+                    usb.util.claim_interface(dev, iface_num)
+                    self._claimed_ifaces.add(iface_num)
 
         except usb.USBError as e:
             msg = str(e).lower()
@@ -144,35 +161,37 @@ class PyUsbTransport:
 
         self._dev = dev
         self._cfg = cfg
-        self._claimed = True
 
     def close(self) -> None:
-        if not self._dev or not self._cfg:
-            self._dev = None
-            self._cfg = None
-            self._claimed = False
+        dev = self._dev
+        cfg = self._cfg
+
+        self._dev = None
+        self._cfg = None
+
+        if dev is None or cfg is None:
+            self._claimed_ifaces.clear()
+            self._detached_ifaces.clear()
             return
 
         try:
-            if self._claimed:
-                # Release only interfaces that actually exist
-                for intf in self._cfg:
-                    try:
-                        usb.util.release_interface(self._dev, intf.bInterfaceNumber)
-                    except usb.USBError:
-                        pass
-
-            # Re-attach kernel drivers best-effort (only for existing interfaces)
-            for intf in self._cfg:
+            # Release claimed interfaces
+            for iface_num in sorted(self._claimed_ifaces):
                 try:
-                    self._dev.attach_kernel_driver(intf.bInterfaceNumber)
+                    usb.util.release_interface(dev, iface_num)
+                except usb.USBError:
+                    pass
+
+            # Optional: reattach only those we detached (best-effort)
+            for iface_num in sorted(self._detached_ifaces):
+                try:
+                    dev.attach_kernel_driver(iface_num)
                 except usb.USBError:
                     pass
 
         finally:
-            self._dev = None
-            self._cfg = None
-            self._claimed = False
+            self._claimed_ifaces.clear()
+            self._detached_ifaces.clear()
 
     def is_open(self) -> bool:
         return self._dev is not None
@@ -193,7 +212,6 @@ class PyUsbTransport:
                 req.length,
                 req.timeout_ms,
             )
-            # PyUSB returns an array('B')-like; convert to bytes
             return bytes(data)
         except usb.USBError as e:
             raise TransportError(str(e)) from e
@@ -209,6 +227,5 @@ class PyUsbTransport:
                 req.data,
                 req.timeout_ms,
             )
-
         except usb.USBError as e:
             raise TransportError(str(e)) from e

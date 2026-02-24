@@ -1,4 +1,4 @@
-# core/device_parameters.py
+# device_parameters.py
 
 from enum import IntEnum
 

@@ -1,8 +1,8 @@
-# core/detector.py
+# device_detection.py
 from __future__ import annotations
 
-from core.devices import DeviceDescriptor, SUPPORTED_DEVICES
-from core.transport import PyUsbTransport
+from tuxam.domain.device_registry import DeviceDescriptor, SUPPORTED_DEVICES
+from tuxam.transport.usb_transport import PyUsbTransport
 
 
 def detect_supported_devices(
