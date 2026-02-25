@@ -8,6 +8,7 @@ import usb.core
 import usb.util
 import usb  # for usb.USBError
 
+_CONTROL_IFACE_NUM = 4  # US-4x4 control via HID interface
 
 # --- Errors (core-level, no pyusb leaking outside) ----------------------------
 
@@ -92,16 +93,16 @@ class FakeTransport:
         return len(req.data)
 
 
-
 class PyUsbTransport:
     """
     Real transport backed by PyUSB.
     Owns the device handle and claimed interfaces.
 
-    Strategy:
-    - Prefer claiming without detaching kernel drivers.
-    - If an interface is busy, detach only that interface and retry claim.
-    - Track detached interfaces and optionally reattach on close (best-effort).
+    Strategy (US-4x4 safe mode):
+    - Prefer claiming only the control interface (HID: iface 4).
+    - Do NOT touch audio interfaces (0..3).
+    - If iface 4 is busy, detach only iface 4 and retry (best-effort).
+    - Track detached interfaces and reattach on close (best-effort).
     """
 
     def __init__(self, vendor_id: int, product_id: int) -> None:
@@ -120,10 +121,10 @@ class PyUsbTransport:
         dev = usb.core.find(idVendor=self._vendor_id, idProduct=self._product_id)
         if dev is None:
             raise DeviceNotFound("USB device not found")
+        self._dev = dev
 
         try:
             # Best-effort: ensure a configuration is selected.
-            # Some backends/devices already have an active configuration.
             try:
                 dev.set_configuration()
             except usb.USBError:
@@ -131,27 +132,40 @@ class PyUsbTransport:
 
             cfg = dev.get_active_configuration()
 
-            # Try to claim each interface. Detach only if needed.
-            for intf in cfg:
-                iface_num = intf.bInterfaceNumber
+            # Debug: show what interfaces/endpoints exist and which are kernel-bound
+            self._debug_dump_interfaces()
 
+            ctrl_iface = _CONTROL_IFACE_NUM
+
+            # Try to claim ONLY the control interface.
+            try:
+                usb.util.claim_interface(dev, ctrl_iface)
+                self._claimed_ifaces.add(ctrl_iface)
+            except usb.USBError as e_claim:
+                # Claim failed; try detaching kernel driver ONLY on iface 4 and retry.
                 try:
-                    usb.util.claim_interface(dev, iface_num)
-                    self._claimed_ifaces.add(iface_num)
-                    continue
-                except usb.USBError:
-                    # Claim failed; try detaching kernel driver and retry claim.
-                    try:
-                        if dev.is_kernel_driver_active(iface_num):
-                            dev.detach_kernel_driver(iface_num)
-                            self._detached_ifaces.add(iface_num)
-                    except (NotImplementedError, usb.USBError):
-                        # Backend doesn't support kernel driver ops or permission issues.
-                        pass
+                    if dev.is_kernel_driver_active(ctrl_iface):
+                        try:
+                            dev.detach_kernel_driver(ctrl_iface)
+                            self._detached_ifaces.add(ctrl_iface)
+                        except usb.USBError:
+                            # detach may fail due to permissions/backend; fall through
+                            pass
+                except (NotImplementedError, usb.USBError):
+                    # Backend doesn't support kernel driver ops or permission issues.
+                    pass
 
-                    # Retry claim after detach attempt
-                    usb.util.claim_interface(dev, iface_num)
-                    self._claimed_ifaces.add(iface_num)
+                # Retry claim after detach attempt
+                try:
+                    usb.util.claim_interface(dev, ctrl_iface)
+                    self._claimed_ifaces.add(ctrl_iface)
+                except usb.USBError as e_retry:
+                    # Permission-y errors should map cleanly
+                    msg = str(e_retry).lower()
+                    if "access" in msg or "permission" in msg:
+                        raise PermissionDenied(str(e_retry)) from e_retry
+                    # Otherwise bubble as transport error (with original context)
+                    raise TransportError(str(e_retry)) from e_retry
 
         except usb.USBError as e:
             msg = str(e).lower()
@@ -159,7 +173,6 @@ class PyUsbTransport:
                 raise PermissionDenied(str(e)) from e
             raise TransportError(str(e)) from e
 
-        self._dev = dev
         self._cfg = cfg
 
     def close(self) -> None:
@@ -195,6 +208,41 @@ class PyUsbTransport:
 
     def is_open(self) -> bool:
         return self._dev is not None
+
+    def _debug_dump_interfaces(self) -> None:
+        """Print interface overview (class/subclass/protocol + kernel driver + endpoints)."""
+        dev = self._dev
+        if dev is None:
+            return
+
+        try:
+            cfg = dev.get_active_configuration()
+        except usb.USBError as e:
+            print(f"[USB] Cannot get active configuration: {e}")
+            return
+
+        print("[USB] Interface dump:")
+        for intf in cfg:
+            num = int(intf.bInterfaceNumber)
+            cls = int(intf.bInterfaceClass)
+            sub = int(intf.bInterfaceSubClass)
+            proto = int(intf.bInterfaceProtocol)
+
+            active = None
+            try:
+                active = dev.is_kernel_driver_active(num)
+            except Exception:
+                pass
+
+            print(
+                f"  - iface {num}: class=0x{cls:02X} sub=0x{sub:02X} "
+                f"proto=0x{proto:02X} kernel_active={active}"
+            )
+            for ep in intf.endpoints():
+                addr = int(ep.bEndpointAddress)
+                attr = int(ep.bmAttributes)
+                mps = int(ep.wMaxPacketSize)
+                print(f"      ep 0x{addr:02X} attr=0x{attr:02X} maxpkt={mps}")
 
     def _require_open(self) -> usb.core.Device:
         if self._dev is None:
