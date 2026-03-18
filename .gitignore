@@ -1,6 +1,10 @@
 .venv/
 __pycache__/
 .idea/
-research
-gui/.temp
+research/
+gui/.temp/
 tascam-util-gui.zip
+tuxam-snap.zip
+tuxam/tools/*.pcapng
+legacy.zip
+legacy/inputs.py legacy/tascam-util.py

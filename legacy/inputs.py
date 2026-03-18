@@ -74,10 +74,3 @@ class InputCommand:
         Invokes the control transfer instruction to set input states
         """
         set_input_mode(device, self.input, self.mode)
-
-
-
-
-
-
-

@@ -3,6 +3,7 @@ import usb.util
 import sys
 import os
 import argparse
+import time
 
 from route import RouteCommand
 from monitor import MonitorCommand
@@ -57,9 +58,35 @@ def release_device(device, device_config):
         usb.util.release_interface(device, device_config[(2,0)])
         usb.util.release_interface(device, device_config[(3,0)])
         usb.util.release_interface(device, device_config[(4,0)])
-        device.attach_kernel_driver(0)
+        for i in range(5):
+            try:
+                print(f"Attaching kernel driver to iface {i}...")
+                print(f"iface {i} kernel_active_before_attach = {device.is_kernel_driver_active(i)}")
+                device.attach_kernel_driver(i)
+                print(f"OK iface {i}")
+            except usb.USBError as err:
+                print(f"FAIL iface {i}: {err}")
     except usb.USBError as err:
         print(err)
+
+# def release_device(device, device_config):
+#     try:
+#         for i in range(5):
+#             usb.util.release_interface(device, device_config[(i,0)])
+#
+#         device.attach_kernel_driver(0)
+#
+#         for i in [1, 2]:
+#             try:
+#                 print(f"{time.time():.3f} Attaching kernel driver to iface {i}...")
+#                 print(f"{time.time():.3f} iface {i} kernel_active_before_attach = {device.is_kernel_driver_active(i)}")
+#                 device.attach_kernel_driver(i)
+#                 print(f"{time.time():.3f} OK iface {i}")
+#             except usb.USBError as err:
+#                 print(f"{time.time():.3f} FAIL iface {i}: {err}")
+#
+#     except usb.USBError as err:
+#         print(err)
 
 
 def get_output_index(output_name):

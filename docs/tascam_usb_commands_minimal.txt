@@ -1,0 +1,21 @@
+USB Commands List
+
+Command: device.ctrl_transfer(0xa1, 2, 0x0100, 0x2900, 16)
+Description: Used to read a specific descriptor or initial status from the device. This command may serve as a preliminary check or configuration step.
+
+Command: device.ctrl_transfer(0xa1, 2, 0x0100, 0x2900, 50)
+Description: Another read operation, similar to the first, but possibly intended for a larger or different data set.
+
+Command: device.ctrl_transfer(0x40, 10, mode, output, None)
+Description: This command sets the output mode for the device, routing audio to a specific output line pair (LINE12 or LINE34). Here, mode determines the audio source (MIX, OUT12, or OUT34).
+
+Command: device.detach_kernel_driver(interface_number)
+Description: Used to detach the kernel driver for each interface, freeing it for use in the application. Repeated for each interface to avoid "Resource busy" errors.
+
+Command: device.set_configuration()
+Description: Sets the configuration of the device, required for it to be ready for further commands. Only used after all relevant kernel drivers are detached.
+
+1. Application has to get controll over Tascam interface to work
+2. App automaticaly detects if interface is plugged in or not
+3. Changes made in settings pannel don't require to be confirmed by additional button
+4.
