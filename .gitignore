@@ -3,8 +3,7 @@ __pycache__/
 .idea/
 research/
 gui/.temp/
-tascam-util-gui.zip
-tuxam-snap.zip
+docs/
 tuxam/tools/*.pcapng
-legacy.zip
-legacy/inputs.py legacy/tascam-util.py
+*.zip
+
