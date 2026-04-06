@@ -11,5 +11,5 @@ if dev is None:
 print("Device found.")
 
 # Enabling / disabling IN2
-result = dev.ctrl_transfer(0x40, 6, 1, 1)
-print("IN2 is disabled", result)
+result = dev.ctrl_transfer(0x40, 6, 0, 3)
+print("IN4 is disabled", result)
