@@ -1,4 +1,4 @@
-# tuxam/ui/main_window.py
+# ui/main_window.py
 
 import sys
 
@@ -117,7 +117,7 @@ class MainWindow(QWidget):
         self.status_label.setText("Device list rescanned")
 
     def _on_open_clicked(self):
-        selected = self.selector.ldown.currentText()
+        selected = self.selector.dropdown.currentText()
         self.status_label.setText(f"Opening window for: {selected}")
         print(f"Open device window for: {selected}")
 

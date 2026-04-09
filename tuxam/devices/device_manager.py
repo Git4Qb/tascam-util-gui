@@ -1,4 +1,4 @@
-# tools/device_manager.py
+# devices/device_manager.py
 
 
 from __future__ import annotations

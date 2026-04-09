@@ -1,4 +1,4 @@
-# tuxam/ui/styles.py
+# ui/styles.py
 
 def vertical_gradient(top: str, bottom: str) -> str:
     return f"""
@@ -128,9 +128,9 @@ def get_button_style() -> str:
         QPushButton:hover {{
             background-color: qlineargradient(
                 x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FFFFFF
-                stop:0.5 #b0b0b0
-                stop:1 #333333
+                stop:0 #FFFFFF,
+                stop:0.5 #b0b0b0,
+                stop:1 #333333,
             );
         }}
 

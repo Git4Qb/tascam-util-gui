@@ -1,4 +1,4 @@
-# tuxam/ui/widgets/penguin_selector.py
+# ui/widgets/penguin_selector.py
 
 from PySide6.QtWidgets import QWidget, QLabel, QComboBox, QStyledItemDelegate
 from PySide6.QtCore import Qt

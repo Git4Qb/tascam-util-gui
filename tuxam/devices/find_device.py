@@ -1,4 +1,4 @@
-# tools/find_device.py
+# devices/find_device.py
 
 from __future__ import annotations
 import usb.core

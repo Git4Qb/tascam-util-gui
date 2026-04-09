@@ -1,3 +1,5 @@
+# main.py
+
 from tuxam.devices.device_manager import select_driver
 import usb.core
 

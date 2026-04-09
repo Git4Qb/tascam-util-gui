@@ -1,3 +1,5 @@
+# tools/test_png.py
+
 import sys
 from PySide6.QtWidgets import QApplication, QLabel
 from PySide6.QtGui import QPixmap
