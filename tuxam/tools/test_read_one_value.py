@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from tuxam.tools.domain.device_registry import US4X4
-from tuxam.tools.transport.usb_transport import PyUsbTransport, CtrlRequest
+from tuxam.devices.device_registry import TASCAM_VENDOR_ID, DEVICES_BY_PRODUCT_ID
+from tuxam.transport.usb_transport import PyUsbTransport, CtrlRequest
+
 
 # Prep sequence (interface-recipient, must target iface 4)
 _PREP_BM = 0xA1
@@ -21,9 +22,10 @@ INDEX = 0
 POWERSAVE_ON = 0x0100
 POWERSAVE_OFF = 0x0000
 
+US4X4 = DEVICES_BY_PRODUCT_ID.get(0x804E)
 
 def main() -> None:
-    t = PyUsbTransport(US4X4.vendor_id, US4X4.product_id)
+    t = PyUsbTransport(TASCAM_VENDOR_ID, US4X4.product_id)
 
     try:
         t.open()

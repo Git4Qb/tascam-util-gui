@@ -3,7 +3,6 @@
 import sys
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import  QColor
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -18,7 +17,7 @@ from tuxam.ui.styles import (
     get_main_window_style,
     get_button_style,
     get_status_label_style,
-    get_background_frame_style,
+    # get_background_frame_style,
     get_panel_style,
 )
 
@@ -36,13 +35,14 @@ class MainWindow(QWidget):
 
         self._build_ui()
         self._connect_signals()
+        self._on_device_selected(self.selector.dropdown.currentIndex())
 
     def _build_ui(self):
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(20, 20, 20, 20)
 
         self.bg_frame = QFrame()
-        self.bg_frame.setStyleSheet(get_background_frame_style())
+        # self.bg_frame.setStyleSheet(get_background_frame_style())
 
         main_layout = QVBoxLayout(self.bg_frame)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -70,7 +70,7 @@ class MainWindow(QWidget):
 
         self.open_button = QPushButton("Open device")
         self.open_button.setStyleSheet(get_button_style())
-        self.open_button.setEnabled(True)
+        self.open_button.setEnabled(False)
 
         self.rescan_button = QPushButton("Rescan")
         self.rescan_button.setStyleSheet(get_button_style())
@@ -95,6 +95,7 @@ class MainWindow(QWidget):
     def _connect_signals(self):
         self.rescan_button.clicked.connect(self._on_rescan_clicked)
         self.open_button.clicked.connect(self._on_open_clicked)
+        self.selector.dropdown.currentIndexChanged.connect(self._on_device_selected)
 
     def _on_device_selected(self, index: int):
         text = self.selector.dropdown.currentText()

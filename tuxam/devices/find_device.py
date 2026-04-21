@@ -5,7 +5,7 @@ import usb.core
 from tuxam.devices.device_registry import TASCAM_VENDOR_ID, DEVICES_BY_PRODUCT_ID
 
 
-def devices_plugged_in():
+def find_tascam_devices():
 
     devices = list(
         usb.core.find(
@@ -21,8 +21,11 @@ def devices_plugged_in():
         descriptor = DEVICES_BY_PRODUCT_ID.get(pid)
 
         if descriptor and descriptor.supported:
-            supported.append(dev)
+            supported.append((dev, descriptor))
         else:
             unsupported.append(dev)
-    print(supported, unsupported)
+
+
     return supported, unsupported
+
+

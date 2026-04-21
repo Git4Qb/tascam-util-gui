@@ -11,6 +11,19 @@ if dev is None:
 
 print("Device found.")
 
-# # Routing: destination LINE12 (0) takes source PC12 (1)
-result = dev.ctrl_transfer(0x40, 10, 0, 0, None)
-print("LINE12 takes audio from source:", result)
+out_12 = 0
+out_34 = 1
+
+mix = 0
+line_12 = 1
+line_34 = 2
+
+def change_routing(output, mode):
+    output = output
+    mode = mode
+    result = dev.ctrl_transfer(0x40, 10, mode, output, None)
+    print(f'Output {output} is now set to mode {mode}')
+    return result
+
+
+change_routing(out_12, mix)

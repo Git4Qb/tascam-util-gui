@@ -1,5 +1,6 @@
 # ui/widgets/penguin_selector.py
 
+from tuxam.ui.assets.assets_path import ASSETS_DIR
 from PySide6.QtWidgets import QWidget, QLabel, QComboBox, QStyledItemDelegate
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
@@ -7,6 +8,8 @@ from tuxam.ui.styles import get_paper_dropdown_style
 
 
 class PenguinSelector(QWidget):
+
+    PENGUIN_SCROLL_PATH = ASSETS_DIR / "penguin_scroll.png"
     def __init__(self):
         super().__init__()
         self.setMinimumSize(400, 400)
@@ -16,9 +19,8 @@ class PenguinSelector(QWidget):
         self.penguin.setStyleSheet("background: transparent;")
         self.penguin.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-
-        pixmap = QPixmap("assets/penguin_scroll.png")  # <- your generated image
-        self.penguin.setPixmap(pixmap)
+        self.pixmap = QPixmap(str(self.PENGUIN_SCROLL_PATH))
+        self.penguin.setPixmap(self.pixmap)
 
         # --- dropdown ---
         self.dropdown = QComboBox(self)
@@ -41,8 +43,8 @@ class PenguinSelector(QWidget):
         h = self.height()
 
         # --- scale penguin ---
-        pixmap = QPixmap("assets/penguin_scroll.png")
-        scaled = pixmap.scaled(
+
+        scaled = self.pixmap.scaled(
             w,
             h,
             Qt.AspectRatioMode.KeepAspectRatio,

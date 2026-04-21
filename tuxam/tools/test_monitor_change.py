@@ -13,6 +13,16 @@ if dev is None:
 
 print("Device found.")
 
-# Change monitor mode of IN1 and IN2 (MONO/STEREO)
-result = dev.ctrl_transfer(0x40, 8, 0, 0)
-print("IN12 are set to MONO:", result)
+mono = 0
+stereo = 1
+in12 = 0
+in34 = 1
+
+def change_monitor(input_pair, mode):
+    input_pair = input_pair
+    mode = mode
+    result = dev.ctrl_transfer(0x40, 8, mode, input_pair)
+    print(f'Inputs {input_pair} is now set to {mode}')
+    return result
+
+change_monitor(in12, mono)

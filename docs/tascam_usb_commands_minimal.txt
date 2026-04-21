@@ -15,7 +15,8 @@ Description: Used to detach the kernel driver for each interface, freeing it for
 Command: device.set_configuration()
 Description: Sets the configuration of the device, required for it to be ready for further commands. Only used after all relevant kernel drivers are detached.
 
-1. Application has to get controll over Tascam interface to work
-2. App automaticaly detects if interface is plugged in or not
-3. Changes made in settings pannel don't require to be confirmed by additional button
-4.
+1. Application has to get control over Tascam interface to work
+2. App automatically detects if interface is plugged in or not
+3. Changes made in settings panel don't require to be confirmed by additional button
+4. Adding support for next Tascam US-series interfaces in future
+5. Each interface has its own GUI

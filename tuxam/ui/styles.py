@@ -13,8 +13,13 @@ COLORS = {
     "bg_main": "rgba(44, 44, 44, 200)",
     "paper": "#EFE3D3",
     "paper_border": "#C56A4C",
-    "button_bg": "#7A8450",
-    "button_hover": "#6c7647",
+    "button_bg": "#d6d6d6",
+    "button_bg_0": "#d6d6d6",
+    "button_bg_0.5": "#bfbfbf",
+    "button_bg_1": "#9e9e9e",
+    "button_hover_0": "#FFFFFF",
+    "button_hover_0.5": "#b0b0b0",
+    "button_hover_1": "#333333",
     "button_disabled": "#777777",
     "text_dark": "#2C2C2C",
     "text_light": "#F5F5F5",
@@ -110,12 +115,7 @@ def get_paper_dropdown_style() -> str:
 def get_button_style() -> str:
     return f"""
         QPushButton {{
-            background-color: qlineargradient(
-                x1:0, y1:0, x2:0, y2:1,
-                stop:0 #d6d6d6,
-                stop:0.5 #bfbfbf,
-                stop:1 #9e9e9e
-            );
+            background-color: {COLORS["button_bg_0"]};
             color: #2C2C2C;
             border: 1px solid #5a5a5a;
             border-radius: {SIZES["radius"]}px;
@@ -128,18 +128,18 @@ def get_button_style() -> str:
         QPushButton:hover {{
             background-color: qlineargradient(
                 x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FFFFFF,
-                stop:0.5 #b0b0b0,
-                stop:1 #333333,
+                stop:0 {COLORS["button_hover_0"]},
+                stop:0.5 {COLORS["button_hover_0.5"]},
+                stop:1 {COLORS["button_hover_1"]}
             );
         }}
 
         QPushButton:pressed {{
             background-color: qlineargradient(
                 x1:0, y1:0, x2:0, y2:1,
-                stop:0 #9e9e9e,
-                stop:0.5 #8a8a8a,
-                stop:1 #6f6f6f
+                stop:0 {COLORS["button_hover_1"]},
+                stop:0.5 {COLORS["button_hover_0.5"]},
+                stop:1 {COLORS["button_hover_0"]}
             );
             padding-top: 10px;
             padding-bottom: 6px;
@@ -185,13 +185,13 @@ def get_penguin_style() -> str:
     """
 
 
-def get_background_frame_style() -> str:
-    return """
-            QFrame {
-                background: transparent;
-                border-radius: 0px;
-            }
-        """
+# def get_background_frame_style() -> str:
+#     return """
+#             QFrame {
+#                 background: transparent;
+#                 border-radius: 0px;
+#             }
+#         """
 
 def get_panel_style() -> str:
     return f"""

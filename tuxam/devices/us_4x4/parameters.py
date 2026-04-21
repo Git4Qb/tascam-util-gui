@@ -38,28 +38,28 @@ class DeviceParameters:
         return iter(range(self.count))
 
 
-powersave = DeviceParameters(
+POWERSAVE = DeviceParameters(
     count=1,
     possible_states=PowerSaveState,
     command_read=0x03,
     command_write=0x04,
 )
 
-input_channel = DeviceParameters(
+INPUT_CHANNEL = DeviceParameters(
     count=4,
     possible_states=InputChannelState,
     command_read=0x05,
     command_write=0x06,
 )
 
-monitoring = DeviceParameters(
+MONITORING = DeviceParameters(
     count=2,
     possible_states=MonitoringState,
     command_read=0x07,
     command_write=0x08,
 )
 
-routing = DeviceParameters(
+ROUTING = DeviceParameters(
     count=2,
     possible_states=RoutingState,
     command_read=0x09,
@@ -67,8 +67,8 @@ routing = DeviceParameters(
 )
 
 FEATURES = {
-    "powersave": powersave,
-    "input_channel": input_channel,
-    "monitoring": monitoring,
-    "routing": routing,
+    "powersave": POWERSAVE,
+    "input_channel": INPUT_CHANNEL,
+    "monitoring": MONITORING,
+    "routing": ROUTING,
 }
