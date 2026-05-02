@@ -23,7 +23,7 @@ def find_tascam_devices():
         if descriptor and descriptor.supported:
             supported.append((dev, descriptor))
         else:
-            unsupported.append(dev)
+            unsupported.append((dev, descriptor))
 
 
     return supported, unsupported

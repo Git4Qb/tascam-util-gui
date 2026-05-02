@@ -13,6 +13,7 @@ class PenguinSelector(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(400, 400)
+
         # --- penguin image ---
         self.penguin = QLabel(self)
         self.penguin.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -23,10 +24,10 @@ class PenguinSelector(QWidget):
         self.penguin.setPixmap(self.pixmap)
 
         # --- dropdown ---
-        self.dropdown = QComboBox(self)
-        self.dropdown.setEditable(True)
-        self.dropdown.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.dropdown.lineEdit().setReadOnly(True)
+        self.dropdown = FixedComboBox(self)
+        self.dropdown.setEditable(False)
+        self.dropdown.setMaxVisibleItems(10)
+        self.dropdown.view().setMinimumHeight(80)
         self.dropdown.addItems([
             "Choose device...",
             "Tascam US-4x4",
@@ -58,11 +59,10 @@ class PenguinSelector(QWidget):
         self.penguin.setGeometry(0, 0, w, h)
 
         # --- dropdown placement ---
-        # IMPORTANT: you tweak these numbers once manually
         drop_width = int(pw * 0.6)
         drop_height = 40
 
-        drop_x = (w - drop_width) // 2 + int(pw * 0.01)
+        drop_x = ((w - drop_width) // 2 + int(pw * 0.01))
         drop_y = int((h - ph) // 2 + ph * 0.45)
 
         self.dropdown.setGeometry(
@@ -72,7 +72,20 @@ class PenguinSelector(QWidget):
             drop_height
         )
 
+        self.dropdown.raise_()
+
 class CenteredItemDelegate(QStyledItemDelegate):
     def initStyleOption(self, option, index, /):
         super().initStyleOption(option, index)
         option.displayAlignment = Qt.AlignmentFlag.AlignCenter
+
+
+
+class FixedComboBox(QComboBox):
+    def showPopup(self):
+        super().showPopup()
+
+        popup = self.view().window()
+        pos = self.mapToGlobal(self.rect().bottomLeft())
+
+        popup.move(pos)
