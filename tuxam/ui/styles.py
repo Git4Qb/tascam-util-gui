@@ -51,64 +51,42 @@ def get_main_window_style() -> str:
     """
 
 
-def get_paper_dropdown_style() -> str:
+def get_device_list_style(font_size: int = 14) -> str:
     return f"""
-        QComboBox {{
-            background: transparent;
-            color: {COLORS["text_dark"]};
-            border: none;
-            padding: 8px 34px 8px 12px;
-            font-family: "{FONTS["main"]}";
-            font-size: {FONTS["size_normal"]}px;
-            font-weight: 600;
-        }}
-
-        QComboBox:hover {{
-            background: transparent;
-            border: none;
-        }}
-
-        QComboBox:focus {{
+        QListWidget {{
             background: transparent;
             border: none;
             outline: none;
+            color: {COLORS["text_dark"]};
+            font-family: "{FONTS["main"]}";
+            font-size: {font_size}px;
         }}
 
-        QComboBox::drop-down {{
-            border: none;
-            width: 28px;
+        QListWidget::viewport {{
             background: transparent;
         }}
 
-        QComboBox::down-arrow {{
-            width: 12px;
-            height: 12px;
+        QListWidget::item {{
             background: transparent;
-        }}
-
-        QComboBox QAbstractItemView {{
-            background-color: rgba(239, 227, 211, 235);
-            color: {COLORS["text_dark"]};
-            border: 1px solid rgba(197, 106, 76, 120);
-            padding: 4px;
-            outline: 0;
-        }}
-
-        QComboBox QAbstractItemView::item {{
-            padding: 8px 10px;
-            background-color: transparent;
-            color: {COLORS["text_dark"]};
             border: none;
+            padding: 4px 6px 4px 6px;
+            margin-left: 6px;
+            margin-right: 4px;
+            color: {COLORS["text_dark"]};
         }}
 
-        QComboBox QAbstractItemView::item:hover {{
-            background-color: rgba(197, 106, 76, 120);
-            color: {COLORS["text_light"]};
-        }}
-        
-        QComboBox QAbstractItemView::item:selected {{
-            background-color: rgba(239, 227, 211, 160);
+        QListWidget::item:selected {{
+            background: transparent;
             color: {COLORS["text_dark"]};
+        }}
+
+        QListWidget::item:hover {{
+           background-color: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 {COLORS["button_hover_0"]},
+                stop:0.5 {COLORS["button_hover_0.5"]},
+                stop:1 {COLORS["button_hover_1"]}
+            );
         }}
     """
 
@@ -184,14 +162,6 @@ def get_penguin_style() -> str:
         }}
     """
 
-
-# def get_background_frame_style() -> str:
-#     return """
-#             QFrame {
-#                 background: transparent;
-#                 border-radius: 0px;
-#             }
-#         """
 
 def get_panel_style() -> str:
     return f"""

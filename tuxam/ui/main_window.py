@@ -17,7 +17,6 @@ from tuxam.ui.styles import (
     get_main_window_style,
     get_button_style,
     get_status_label_style,
-    # get_background_frame_style,
     get_panel_style,
 )
 
@@ -27,6 +26,7 @@ from tuxam.ui.widgets.us4x4_card import US4x4Card
 from tuxam.devices.find_device import find_tascam_devices
 from tuxam.ui.assets.icons.app_icon import get_app_icon
 from tuxam.ui.widgets.penguin_selector import PenguinSelector
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -38,13 +38,13 @@ class MainWindow(QWidget):
         self.unsupported_devices = []
 
         self.setWindowTitle("Tuxam")
-        self.resize(560, 640)
+        self.resize(640, 640)
         self.setWindowIcon(get_app_icon())
         self.setStyleSheet(get_main_window_style())
 
         self._build_ui()
         self._connect_signals()
-        self._on_device_selected(self.selector.dropdown.currentIndex())
+        self._on_device_selected(self.selector.device_list.currentRow())
         self._on_rescan_clicked()
 
     def _build_ui(self):
@@ -52,13 +52,10 @@ class MainWindow(QWidget):
         outer_layout.setContentsMargins(20, 20, 20, 20)
 
         self.bg_frame = QFrame()
-        # self.bg_frame.setStyleSheet(get_background_frame_style())
 
         main_layout = QVBoxLayout(self.bg_frame)
-        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(15)
 
-        # --- section frames ---
         self.top_panel = QFrame()
         self.center_panel = QFrame()
         self.bottom_panel = QFrame()
@@ -67,13 +64,12 @@ class MainWindow(QWidget):
         self.center_panel.setStyleSheet(get_panel_style())
         self.bottom_panel.setStyleSheet(get_panel_style())
 
-        # --- layouts inside panels ---
         top_layout = QHBoxLayout(self.top_panel)
         top_layout.setContentsMargins(24, 16, 24, 16)
         top_layout.setSpacing(10)
 
         center_layout = QVBoxLayout(self.center_panel)
-        center_layout.setContentsMargins(24, 16, 24, 16)
+        center_layout.setContentsMargins(0, 0, 0, 0)
 
         bottom_layout = QVBoxLayout(self.bottom_panel)
         bottom_layout.setContentsMargins(24, 10, 24, 10)
@@ -105,7 +101,7 @@ class MainWindow(QWidget):
     def _connect_signals(self):
         self.rescan_button.clicked.connect(self._on_rescan_clicked)
         self.open_button.clicked.connect(self._on_open_clicked)
-        self.selector.dropdown.currentIndexChanged.connect(self._on_device_selected)
+        self.selector.device_list.currentRowChanged.connect(self._on_device_selected)
 
     def _on_device_selected(self, index: int):
         if self.card is not None:
@@ -113,9 +109,10 @@ class MainWindow(QWidget):
             self.status_label.setText("Close device panel before opening another device")
             return
 
-        text = self.selector.dropdown.currentText()
+        item = self.selector.device_list.currentItem()
+        text = item.text() if item else ""
 
-        if index == 0:
+        if index < 0:
             self.open_button.setEnabled(False)
             self.status_label.setText("Select a device and click Open device")
             return
@@ -142,20 +139,19 @@ class MainWindow(QWidget):
         self.supported_devices = supported
         self.unsupported_devices = unsupported
 
-        self.selector.dropdown.clear()
-        self.selector.dropdown.addItem("Select device")
+        self.selector.device_list.clear()
 
         for dev, desc in supported:
-            self.selector.dropdown.addItem(desc.name)
+            self.selector.device_list.addItem(desc.name)
 
         for dev, desc in unsupported:
             name = desc.name if desc else "Unknown device"
-            self.selector.dropdown.addItem(f"{name} (Unsupported device)")
+            self.selector.device_list.addItem(f"{name} (Unsupported device)")
 
         if not supported and not unsupported:
-            self.selector.dropdown.addItem("Mock Tascam US-4x4")
+            self.selector.device_list.addItem("Mock Tascam US-4x4")
 
-        self.selector.dropdown.setCurrentIndex(0)
+        self.selector.device_list.setCurrentRow(0)
         self.open_button.setEnabled(False)
         self.status_label.setText("Device list updated")
 

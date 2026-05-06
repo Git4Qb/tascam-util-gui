@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Signal
 from tuxam.devices.us_4x4.parameters import INPUT_CHANNEL
 from tuxam.ui.widgets.input_icon import InputIcon
-from tuxam.ui.assets.assets_path import ASSETS_DIR
+from tuxam.ui.assets.assets_path import inputs
 from tuxam.ui.assets.icons.app_icon import get_app_icon
 
 
@@ -26,8 +26,8 @@ class US4x4Card(QWidget):
         inputs_layout = QHBoxLayout()
         main_layout.addLayout(inputs_layout)
 
-        off_image = ASSETS_DIR / "input_off.png"
-        on_image = ASSETS_DIR / "input_on.png"
+        off_image = inputs("input_off.png")
+        on_image = inputs("input_on.png")
 
         for index in INPUT_CHANNEL:
             button = InputIcon(

@@ -1,6 +1,6 @@
 # ui/assets/assets_path.py
-
 from pathlib import Path
+
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 
@@ -9,3 +9,10 @@ def asset(name: str) -> Path:
 
 def icon(name: str) -> str:
     return str(ASSETS_DIR / "icons" / name)
+
+def inputs(name: str) -> str:
+    return str(ASSETS_DIR / "inputs" / name)
+
+def penguin(name: str) -> str:
+    return str(ASSETS_DIR / "penguin" / name)
+
