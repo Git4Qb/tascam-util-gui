@@ -20,22 +20,20 @@ from tuxam.ui.styles import (
     get_panel_style,
 )
 
-from tuxam.drivers.us4x4_driver import US4X4Driver
-from tuxam.tools.fake_transport import FakeTransport
+from tuxam.devices.device_service import DeviceService, RealDeviceService
 from tuxam.ui.widgets.us4x4_card import US4x4Card
-from tuxam.devices.find_device import find_tascam_devices
 from tuxam.ui.assets.icons.app_icon import get_app_icon
 from tuxam.ui.widgets.penguin_selector import PenguinSelector
 
 
 class MainWindow(QWidget):
-    def __init__(self):
+    def __init__(self, device_service: DeviceService | None = None):
         super().__init__()
+        self.device_service = device_service or RealDeviceService()
         self.driver = None
         self.state = None
         self.card = None
-        self.supported_devices = []
-        self.unsupported_devices = []
+        self.device_options = []
 
         self.setWindowTitle("Tuxam")
         self.resize(640, 640)
@@ -109,15 +107,13 @@ class MainWindow(QWidget):
             self.status_label.setText("Close device panel before opening another device")
             return
 
-        item = self.selector.device_list.currentItem()
-        text = item.text() if item else ""
-
-        if index < 0:
+        if index < 0 or index >= len(self.device_options):
             self.open_button.setEnabled(False)
             self.status_label.setText("Select a device and click Open device")
             return
 
-        if "Unsupported" in text:
+        option = self.device_options[index]
+        if not option.is_supported:
             self.open_button.setEnabled(False)
             self.status_label.setText("This device is not supported yet")
             return
@@ -130,28 +126,20 @@ class MainWindow(QWidget):
         self.state = None
 
         try:
-            supported, unsupported = find_tascam_devices()
+            self.device_options = self.device_service.scan_devices()
         except Exception as e:
-            supported = []
-            unsupported = []
-            self.status_label.setText(f"Real device scan failed, using mock: {e}")
-
-        self.supported_devices = supported
-        self.unsupported_devices = unsupported
+            self.device_options = []
+            self.status_label.setText(f"Device scan failed: {e}")
 
         self.selector.device_list.clear()
 
-        for dev, desc in supported:
-            self.selector.device_list.addItem(desc.name)
+        for option in self.device_options:
+            self.selector.device_list.addItem(option.label)
 
-        for dev, desc in unsupported:
-            name = desc.name if desc else "Unknown device"
-            self.selector.device_list.addItem(f"{name} (Unsupported device)")
+        if not self.device_options:
+            self.selector.device_list.addItem("No Tascam devices found")
 
-        if not supported and not unsupported:
-            self.selector.device_list.addItem("Mock Tascam US-4x4")
-
-        self.selector.device_list.setCurrentRow(0)
+        self.selector.device_list.setCurrentRow(0 if self.selector.device_list.count() else -1)
         self.open_button.setEnabled(False)
         self.status_label.setText("Device list updated")
 
@@ -160,11 +148,14 @@ class MainWindow(QWidget):
             self.status_label.setText("Device panel is already open")
             return
 
-        try:
-            fake = FakeTransport()
-            fake.open()
+        index = self.selector.device_list.currentRow()
+        if index < 0 or index >= len(self.device_options):
+            self.status_label.setText("Select a supported device first")
+            return
 
-            self.driver = US4X4Driver(fake)
+        try:
+            option = self.device_options[index]
+            self.driver = self.device_service.open_driver(option)
             self.state = self.driver.read_device_state()
 
             self.card = US4x4Card(self.driver, self.state)
@@ -172,7 +163,7 @@ class MainWindow(QWidget):
             self.card.show()
 
             self.open_button.setEnabled(False)
-            self.status_label.setText("Mock US-4x4 opened")
+            self.status_label.setText(f"{option.label} opened")
 
         except Exception as e:
             self.driver = None
@@ -188,7 +179,7 @@ class MainWindow(QWidget):
 
     def _on_card_closed(self):
         self.card = None
-        self.open_button.setEnabled(True)
+        self._on_device_selected(self.selector.device_list.currentRow())
         self.status_label.setText("Device panel closed")
 
 
