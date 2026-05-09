@@ -45,6 +45,7 @@
 
 ## Communication Preferences
 
+- At the start of each Codex session, review `docs/ideas.md` to keep current project plans and active design direction in mind
 - Briefly summarize what changed after each task
 - Explain important architectural decisions briefly
 - Point out when a pattern or workflow is good practice
