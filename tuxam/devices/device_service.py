@@ -23,8 +23,11 @@ class DeviceService(Protocol):
 
 
 class RealDeviceService:
+    def __init__(self, device_finder=find_tascam_devices):
+        self._device_finder = device_finder
+
     def scan_devices(self) -> list[DeviceOption]:
-        supported, unsupported = find_tascam_devices()
+        supported, unsupported = self._device_finder()
         options = []
 
         for dev, desc in supported:
