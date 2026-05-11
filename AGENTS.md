@@ -29,7 +29,7 @@
 
 - After edits, run:
 
-  `.venv/bin/python -m compileall -q tuxam -x 'tuxam/tools/.*'`
+  `.venv/bin/python -m compileall -q tuxam`
 
 ## Git Workflow
 

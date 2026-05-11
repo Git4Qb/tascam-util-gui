@@ -22,6 +22,10 @@ class DeviceService(Protocol):
     def open_driver(self, option: DeviceOption): ...
 
 
+def format_device_label(name: str) -> str:
+    return name.removeprefix("Tascam ")
+
+
 class RealDeviceService:
     def __init__(self, device_finder=find_tascam_devices):
         self._device_finder = device_finder
@@ -33,7 +37,7 @@ class RealDeviceService:
         for dev, desc in supported:
             options.append(
                 DeviceOption(
-                    label=desc.name,
+                    label=format_device_label(desc.name),
                     is_supported=True,
                     device=dev,
                     descriptor=desc,
@@ -44,7 +48,7 @@ class RealDeviceService:
             name = desc.name if desc else "Unknown Tascam device"
             options.append(
                 DeviceOption(
-                    label=f"{name} (Unsupported device)",
+                    label=f"{format_device_label(name)} (Unsupported device)",
                     is_supported=False,
                     device=dev,
                     descriptor=desc,

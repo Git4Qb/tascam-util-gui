@@ -60,6 +60,7 @@ def get_device_list_style(font_size: int = 14) -> str:
             color: {COLORS["text_dark"]};
             font-family: "{FONTS["main"]}";
             font-size: {font_size}px;
+            font-weight: 600;
         }}
 
         QListWidget::viewport {{
@@ -69,9 +70,9 @@ def get_device_list_style(font_size: int = 14) -> str:
         QListWidget::item {{
             background: transparent;
             border: none;
-            padding: 4px 6px 4px 6px;
-            margin-left: 6px;
-            margin-right: 4px;
+            padding: 4px 5px 4px 5px;
+            margin-left: 3px;
+            margin-right: 3px;
             color: {COLORS["text_dark"]};
         }}
 
@@ -83,21 +84,23 @@ def get_device_list_style(font_size: int = 14) -> str:
         QListWidget::item:hover {{
            background-color: qlineargradient(
                 x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS["button_hover_0"]},
-                stop:0.5 {COLORS["button_hover_0.5"]},
-                stop:1 {COLORS["button_hover_1"]}
+                stop:0 rgba(255, 255, 255, 185),
+                stop:0.45 rgba(255, 243, 222, 170),
+                stop:1 rgba(221, 191, 152, 145)
             );
+            border-radius: 5px;
+            color: #4A2410;
         }}
     """
 
 def get_button_style() -> str:
     return f"""
         QPushButton {{
-            background-color: {COLORS["button_bg_0"]};
-            color: #2C2C2C;
-            border: 1px solid #5a5a5a;
+            background-color: #1B1B1B;
+            color: {COLORS["status_text"]};
+            border: 1px solid #6D6256;
             border-radius: {SIZES["radius"]}px;
-            padding: {SIZES["padding"]}px;
+            padding: 8px 14px;
             min-height: {SIZES["button_height"]}px;
             font-family: "{FONTS["main"]}";
             font-size: {FONTS["size_normal"]}px;
@@ -106,27 +109,62 @@ def get_button_style() -> str:
         QPushButton:hover {{
             background-color: qlineargradient(
                 x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS["button_hover_0"]},
-                stop:0.5 {COLORS["button_hover_0.5"]},
-                stop:1 {COLORS["button_hover_1"]}
+                stop:0 #37312B,
+                stop:1 #211D1A
             );
+            border-color: #B09A83;
+            color: #FFF7EE;
         }}
 
         QPushButton:pressed {{
-            background-color: qlineargradient(
-                x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS["button_hover_1"]},
-                stop:0.5 {COLORS["button_hover_0.5"]},
-                stop:1 {COLORS["button_hover_0"]}
-            );
-            padding-top: 10px;
-            padding-bottom: 6px;
+            background-color: #151210;
+            border-color: #7B6B5B;
+            color: #E8DCCF;
         }}
 
         QPushButton:disabled {{
-            background-color: #3a3a3a;
-            color: #888888;
-            border: 1px solid #2a2a2a;
+            background-color: #202020;
+            color: #686868;
+            border: 1px solid #303030;
+        }}
+    """
+
+
+def get_primary_button_style() -> str:
+    return f"""
+        QPushButton {{
+            background-color: #E8E1D6;
+            color: #1F1F1F;
+            border: 1px solid #F3EFE8;
+            border-radius: {SIZES["radius"]}px;
+            padding: 8px 16px;
+            min-height: {SIZES["button_height"]}px;
+            font-family: "{FONTS["main"]}";
+            font-size: {FONTS["size_normal"]}px;
+            font-weight: 600;
+        }}
+
+        QPushButton:hover {{
+            background-color: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFFFFF,
+                stop:0.45 #FFF3DE,
+                stop:1 #DDBF98
+            );
+            border: 1px solid #FFD18B;
+            color: #080808;
+        }}
+
+        QPushButton:pressed {{
+            background-color: #B99D7A;
+            border-color: #D7B276;
+            color: #171717;
+        }}
+
+        QPushButton:disabled {{
+            background-color: #202020;
+            color: #686868;
+            border: 1px solid #303030;
         }}
     """
 
@@ -137,6 +175,29 @@ def get_status_label_style() -> str:
             color: {COLORS["status_text"]};
             font-family: "{FONTS["main"]}";
             font-size: {FONTS["size_status"]}px;
+            background: transparent;
+        }}
+    """
+
+
+def get_empty_state_title_style() -> str:
+    return f"""
+        QLabel {{
+            color: {COLORS["status_text"]};
+            font-family: "{FONTS["main"]}";
+            font-size: 20px;
+            font-weight: bold;
+            background: transparent;
+        }}
+    """
+
+
+def get_empty_state_detail_style() -> str:
+    return f"""
+        QLabel {{
+            color: {COLORS["status_text"]};
+            font-family: "{FONTS["main"]}";
+            font-size: {FONTS["size_normal"]}px;
             background: transparent;
         }}
     """

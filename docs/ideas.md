@@ -2,6 +2,38 @@
 
 Timestamp: 2026-05-09 12:54 CEST
 
+Status update: 2026-05-10
+
+Implemented in `feat(ui): add explicit demo mode switching`:
+
+- App starts in real mode with explicit `AppMode.REAL`
+- Demo mode is represented by explicit `AppMode.DEMO`
+- Command-line `--demo` startup behavior has been removed
+- Real and demo device lists are selected through separate services
+- `DemoDeviceService` and `DemoTransport` provide an in-memory US-4x4 demo device
+- Startup with no real devices offers Demo Mode, Rescan, and Quit
+- Demo mode can switch back to real device mode
+- If no real devices are found after switching back, the app offers Rescan, Stay in Demo Mode, and Quit
+
+Next UI direction:
+
+- Keep startup no-device handling inside the main window instead of showing a separate popup
+- Keep actions contextual to the current center view:
+  - No-device view: Rescan, Demo Mode, Quit
+  - Device selector view: Open device, Rescan, mode switch
+- Keep the upper action row removed so the center view has more room
+- Make demo mode visually persistent so users always know whether they are using real hardware or simulated devices
+- Start with a small persistent `Demo Mode` badge near the selector/actions area, possibly reusing `ModeBadge`
+- Consider changing status text in demo mode to mention simulated devices
+- Keep real mode visually normal
+- Avoid redesigning the device settings card until the basic mode indicator is clear
+
+Follow-up review notes:
+
+- Rescan now closes an open device panel before scanning, avoiding a stale driver reference in a separate panel.
+- The startup no-device popup has been removed; the no-device state is now handled by `NoDeviceView`.
+- Device scan errors should become their own UI state instead of being represented by the generic no-device empty state.
+
 Goal:
 
 Tuxam should support a separate demo mode for exploring supported device UIs without connected hardware.
@@ -29,7 +61,7 @@ Startup behavior:
 - App starts in real mode
 - App scans for connected Tascam devices automatically
 - If devices are found, show normal device selection
-- If no devices are found, show a dialog with:
+- If no devices are found, show the in-window no-device view with:
   - Demo Mode
   - Rescan
   - Quit
@@ -55,9 +87,9 @@ Switching back to real mode:
 
 - User can switch from demo mode back to real devices
 - App rescans USB devices
-- If no devices are found, offer:
+- If no devices are found, show the in-window no-device view with:
   - Rescan
-  - Stay in Demo Mode
+  - Demo Mode
   - Quit
 
 Implementation notes:

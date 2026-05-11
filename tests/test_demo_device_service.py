@@ -13,7 +13,7 @@ class DemoDeviceServiceTests(unittest.TestCase):
         options = service.scan_devices()
 
         self.assertEqual(len(options), 1)
-        self.assertEqual(options[0].label, "Tascam US-4X4 (Demo)")
+        self.assertEqual(options[0].label, "US-4X4 (Demo)")
         self.assertTrue(options[0].is_supported)
 
     def test_open_driver_uses_in_memory_state(self) -> None:

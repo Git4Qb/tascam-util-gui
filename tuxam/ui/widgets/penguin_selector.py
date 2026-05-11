@@ -75,9 +75,9 @@ class PenguinSelector(QWidget):
         image_y = (h - ph) // 2
 
         # device list position
-        list_x_on_image = 550
+        list_x_on_image = 555
         list_y_on_image = 320
-        list_w_on_image = 340
+        list_w_on_image = 333
         list_h_on_image = 400
 
         scale = pw / self.pixmap.width()
@@ -97,10 +97,10 @@ class PenguinSelector(QWidget):
         self.device_list.raise_()
 
         base_widget_width = 560
-        base_font_size = 14.0
+        base_font_size = 13.0
 
         font_scale = pw / base_widget_width
-        scaled_font_size = max(14.0, base_font_size * font_scale)
+        scaled_font_size = max(13.0, base_font_size * font_scale)
 
         self.device_list_font.setPointSizeF(scaled_font_size)
         self.device_list.setFont(self.device_list_font)

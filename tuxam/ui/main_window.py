@@ -12,12 +12,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QFrame,
     QMessageBox,
+    QStackedWidget,
 )
 
 from tuxam.app_mode import AppMode
 from tuxam.ui.styles import (
     get_main_window_style,
     get_button_style,
+    get_primary_button_style,
     get_status_label_style,
     get_panel_style,
 )
@@ -26,6 +28,7 @@ from tuxam.devices.demo_device_service import DemoDeviceService
 from tuxam.devices.device_service import DeviceService, RealDeviceService
 from tuxam.ui.widgets.us4x4_card import US4x4Card
 from tuxam.ui.assets.icons.app_icon import get_app_icon
+from tuxam.ui.widgets.no_device_view import NoDeviceView
 from tuxam.ui.widgets.penguin_selector import PenguinSelector
 
 
@@ -38,7 +41,7 @@ class MainWindow(QWidget):
         self.state = None
         self.card = None
         self.device_options = []
-        self.no_devices_dialog = None
+        self.scan_error = None
 
         self.setWindowTitle("Tuxam")
         self.resize(640, 640)
@@ -60,26 +63,21 @@ class MainWindow(QWidget):
         main_layout = QVBoxLayout(self.bg_frame)
         main_layout.setSpacing(15)
 
-        self.top_panel = QFrame()
         self.center_panel = QFrame()
         self.bottom_panel = QFrame()
 
-        self.top_panel.setStyleSheet(get_panel_style())
         self.center_panel.setStyleSheet(get_panel_style())
         self.bottom_panel.setStyleSheet(get_panel_style())
 
-        top_layout = QHBoxLayout(self.top_panel)
-        top_layout.setContentsMargins(24, 16, 24, 16)
-        top_layout.setSpacing(10)
-
         center_layout = QVBoxLayout(self.center_panel)
-        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setContentsMargins(0, 0, 0, 18)
+        center_layout.setSpacing(12)
 
         bottom_layout = QVBoxLayout(self.bottom_panel)
         bottom_layout.setContentsMargins(24, 10, 24, 10)
 
         self.open_button = QPushButton("Open device")
-        self.open_button.setStyleSheet(get_button_style())
+        self.open_button.setStyleSheet(get_primary_button_style())
         self.open_button.setEnabled(False)
 
         self.rescan_button = QPushButton("Rescan")
@@ -88,19 +86,28 @@ class MainWindow(QWidget):
         self.mode_button = QPushButton()
         self.mode_button.setStyleSheet(get_button_style())
 
-        top_layout.addWidget(self.rescan_button)
-        top_layout.addWidget(self.open_button)
-        top_layout.addWidget(self.mode_button)
-
         self.selector = PenguinSelector()
-        center_layout.addWidget(self.selector)
+        self.no_device_view = NoDeviceView()
+        self.center_stack = QStackedWidget()
+        self.center_stack.addWidget(self.selector)
+        self.center_stack.addWidget(self.no_device_view)
+        center_layout.addWidget(self.center_stack)
+
+        self.device_actions = QFrame()
+        device_actions_layout = QHBoxLayout(self.device_actions)
+        device_actions_layout.setContentsMargins(24, 0, 24, 0)
+        device_actions_layout.setSpacing(10)
+        device_actions_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        device_actions_layout.addWidget(self.open_button)
+        device_actions_layout.addWidget(self.rescan_button)
+        device_actions_layout.addWidget(self.mode_button)
+        center_layout.addWidget(self.device_actions)
 
         self.status_label = QLabel("Select a device and click Open device")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet(get_status_label_style())
         bottom_layout.addWidget(self.status_label)
 
-        main_layout.addWidget(self.top_panel)
         main_layout.addWidget(self.center_panel, 1)
         main_layout.addWidget(self.bottom_panel)
 
@@ -111,6 +118,9 @@ class MainWindow(QWidget):
         self.open_button.clicked.connect(self._on_open_clicked)
         self.mode_button.clicked.connect(self._on_mode_clicked)
         self.selector.device_list.currentRowChanged.connect(self._on_device_selected)
+        self.no_device_view.rescan_requested.connect(self._on_rescan_clicked)
+        self.no_device_view.demo_mode_requested.connect(self._switch_to_demo_mode)
+        self.no_device_view.quit_requested.connect(QApplication.instance().quit)
 
     def _create_device_service(self, app_mode: AppMode) -> DeviceService:
         if app_mode is AppMode.DEMO:
@@ -126,9 +136,6 @@ class MainWindow(QWidget):
 
     def _handle_startup_scan(self):
         self._scan_devices()
-
-        if self.app_mode is AppMode.REAL and not self.device_options:
-            self._prompt_no_real_devices_at_startup()
 
     def _on_device_selected(self, index: int):
         if self.card is not None:
@@ -151,6 +158,7 @@ class MainWindow(QWidget):
         self.status_label.setText("Supported device selected")
 
     def _on_rescan_clicked(self):
+        self._close_open_device()
         self._scan_devices()
 
     def _scan_devices(self):
@@ -159,27 +167,48 @@ class MainWindow(QWidget):
 
         try:
             self.device_options = self.device_service.scan_devices()
+            self.scan_error = None
         except Exception as e:
             self.device_options = []
-            self.status_label.setText(f"Device scan failed: {e}")
+            self.scan_error = e
 
         self.selector.device_list.clear()
 
         for option in self.device_options:
             self.selector.device_list.addItem(option.label)
 
-        if not self.device_options:
-            self.selector.device_list.addItem("No Tascam devices found")
-
         self.selector.device_list.setCurrentRow(0 if self.selector.device_list.count() else -1)
         self.open_button.setEnabled(False)
+        self._update_center_view()
 
-        if self.device_options:
+        if self.scan_error is not None:
+            self.status_label.setText(f"Device scan failed: {self.scan_error}")
+        elif self.device_options:
             self.status_label.setText("Device list updated")
         elif self.app_mode is AppMode.DEMO:
             self.status_label.setText("No demo devices available")
         else:
             self.status_label.setText("No Tascam devices found")
+
+    def _update_center_view(self):
+        if self.scan_error is not None:
+            self.no_device_view.show_scan_error(self.scan_error)
+            self.center_stack.setCurrentWidget(self.no_device_view)
+            self.device_actions.setVisible(False)
+            return
+
+        if self.device_options:
+            self.center_stack.setCurrentWidget(self.selector)
+            self.device_actions.setVisible(True)
+            return
+
+        if self.app_mode is AppMode.DEMO:
+            self.no_device_view.show_no_demo_devices()
+        else:
+            self.no_device_view.show_real_no_devices()
+
+        self.center_stack.setCurrentWidget(self.no_device_view)
+        self.device_actions.setVisible(False)
 
     def _on_open_clicked(self):
         if self.card is not None:
@@ -244,74 +273,8 @@ class MainWindow(QWidget):
         self._update_mode_ui()
         self._scan_devices()
 
-        if not self.device_options:
-            self._prompt_no_real_devices_from_demo_mode()
-        else:
+        if self.device_options:
             self.status_label.setText("Real device mode enabled")
-
-    def _prompt_no_real_devices_at_startup(self):
-        self._show_no_devices_dialog(
-            [
-                ("Demo Mode", self._switch_to_demo_mode),
-                ("Rescan", self._rescan_real_devices_from_startup_dialog),
-                ("Quit", QApplication.instance().quit),
-            ]
-        )
-
-    def _prompt_no_real_devices_from_demo_mode(self):
-        self._show_no_devices_dialog(
-            [
-                ("Rescan", self._rescan_real_devices_from_demo_dialog),
-                ("Stay in Demo Mode", self._switch_to_demo_mode),
-                ("Quit", QApplication.instance().quit),
-            ]
-        )
-
-    def _show_no_devices_dialog(self, actions):
-        if self.no_devices_dialog is not None:
-            self.no_devices_dialog.raise_()
-            self.no_devices_dialog.activateWindow()
-            return
-
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle("No Devices Found")
-        dialog.setText("No Tascam devices were found.")
-        dialog.setModal(False)
-
-        button_actions = {}
-        for label, callback in actions:
-            button = dialog.addButton(label, QMessageBox.ButtonRole.ActionRole)
-            button_actions[button] = callback
-
-        def handle_button(button):
-            callback = button_actions.get(button)
-            dialog.close()
-            if callback is not None:
-                callback()
-
-        def clear_dialog():
-            if self.no_devices_dialog is dialog:
-                self.no_devices_dialog = None
-
-        dialog.buttonClicked.connect(handle_button)
-        dialog.finished.connect(clear_dialog)
-
-        self.no_devices_dialog = dialog
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
-
-    def _rescan_real_devices_from_startup_dialog(self):
-        self._scan_devices()
-
-        if self.app_mode is AppMode.REAL and not self.device_options:
-            self._prompt_no_real_devices_at_startup()
-
-    def _rescan_real_devices_from_demo_dialog(self):
-        self._scan_devices()
-
-        if self.app_mode is AppMode.REAL and not self.device_options:
-            self._prompt_no_real_devices_from_demo_mode()
 
     def _close_open_device(self):
         if self.card is not None:
@@ -338,10 +301,6 @@ class MainWindow(QWidget):
         self.status_label.setText("Device panel closed")
 
     def closeEvent(self, event):
-        if self.no_devices_dialog is not None:
-            self.no_devices_dialog.close()
-            self.no_devices_dialog = None
-
         self._close_open_device()
         super().closeEvent(event)
 

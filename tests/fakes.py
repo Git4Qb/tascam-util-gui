@@ -68,3 +68,14 @@ class FakeDeviceService:
     def open_driver(self, option: DeviceOption) -> FakeDriver:
         self.opened_options.append(option)
         return self.driver
+
+
+class FailingDeviceService:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error or RuntimeError("USB backend unavailable")
+
+    def scan_devices(self) -> list[DeviceOption]:
+        raise self.error
+
+    def open_driver(self, option: DeviceOption) -> FakeDriver:
+        raise AssertionError("open_driver should not be called after a failed scan")
