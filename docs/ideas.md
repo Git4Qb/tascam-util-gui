@@ -1,3 +1,37 @@
+## Work snapshot: 2026-05-12 00:31 CEST
+
+Latest commit:
+
+- `8a77134 refactor(ui): simplify no-device flow and polish selector controls`
+
+Done in this stage:
+
+- Replaced the startup no-device popup with an in-window `NoDeviceView`
+- Removed the upper action row and moved actions into contextual center-view controls
+- Added `penguin_no_device.png` for the no-device empty state
+- Restyled primary and secondary buttons with lighter, warmer hover/pressed states
+- Improved device-list readability, hover styling, and label fit on the selector flipboard
+- Shortened displayed Tascam device names in selector lists, for example `US-4X4 (Demo)`
+- Added a separate scan-error UI state with `Try Again`, `Demo Mode`, and `Quit`
+- Added test coverage for the scan-error UI state
+- Updated validation instructions to compile all of `tuxam`
+
+Current state:
+
+- The app has a cleaner launcher-style main window
+- No-device, scan-error, and device-selector states are visually separated
+- Real/demo device list separation remains intact
+- The branch is a good experimental UI milestone on `ui-experiments`
+
+Next reasonable steps:
+
+- Add a persistent but subtle `Demo Mode` indicator so simulated devices are always obvious
+- Decide where the demo indicator belongs now that the upper action row is gone
+- Consider demo-mode status text such as `Simulated device selected`
+- Keep real mode visually normal and avoid a full theme swap
+- After the demo indicator is stable, consider whether this UI work should be cherry-picked or merged back to `redesign`
+- Later, if `main_window.py` keeps growing, extract a `DeviceSelectorView` instead of doing a broad architecture rewrite
+
 ## Future idea: separate demo mode from real device mode
 
 Timestamp: 2026-05-09 12:54 CEST
