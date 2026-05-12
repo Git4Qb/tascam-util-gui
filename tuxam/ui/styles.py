@@ -77,8 +77,14 @@ def get_device_list_style(font_size: int = 14) -> str:
         }}
 
         QListWidget::item:selected {{
-            background: transparent;
-            color: {COLORS["text_dark"]};
+            background-color: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 255, 255, 215),
+                stop:0.45 rgba(255, 232, 190, 205),
+                stop:1 rgba(202, 149, 84, 190)
+            );
+            border-radius: 5px;
+            color: #241307;
         }}
 
         QListWidget::item:hover {{
@@ -175,6 +181,18 @@ def get_status_label_style() -> str:
             color: {COLORS["status_text"]};
             font-family: "{FONTS["main"]}";
             font-size: {FONTS["size_status"]}px;
+            background: transparent;
+        }}
+    """
+
+
+def get_demo_notice_style() -> str:
+    return f"""
+        QLabel {{
+            color: #D9AA63;
+            font-family: "{FONTS["main"]}";
+            font-size: {FONTS["size_status"]}px;
+            font-weight: 600;
             background: transparent;
         }}
     """

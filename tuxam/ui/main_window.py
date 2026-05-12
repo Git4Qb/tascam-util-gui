@@ -2,7 +2,7 @@
 
 import sys
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QModelIndex, QSignalBlocker, Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
 )
 
 from tuxam.app_mode import AppMode
+from tuxam.ui import messages
 from tuxam.ui.styles import (
     get_main_window_style,
     get_button_style,
+    get_demo_notice_style,
     get_primary_button_style,
     get_status_label_style,
     get_panel_style,
@@ -41,6 +43,7 @@ class MainWindow(QWidget):
         self.state = None
         self.card = None
         self.device_options = []
+        self.selected_device_index = None
         self.scan_error = None
 
         self.setWindowTitle("Tuxam")
@@ -76,15 +79,19 @@ class MainWindow(QWidget):
         bottom_layout = QVBoxLayout(self.bottom_panel)
         bottom_layout.setContentsMargins(24, 10, 24, 10)
 
-        self.open_button = QPushButton("Open device")
+        self.open_button = QPushButton(messages.BUTTON_OPEN_DEVICE)
         self.open_button.setStyleSheet(get_primary_button_style())
         self.open_button.setEnabled(False)
 
-        self.rescan_button = QPushButton("Rescan")
+        self.rescan_button = QPushButton(messages.BUTTON_RESCAN)
         self.rescan_button.setStyleSheet(get_button_style())
 
         self.mode_button = QPushButton()
         self.mode_button.setStyleSheet(get_button_style())
+
+        self.demo_notice_label = QLabel(messages.DEMO_NOTICE)
+        self.demo_notice_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.demo_notice_label.setStyleSheet(get_demo_notice_style())
 
         self.selector = PenguinSelector()
         self.no_device_view = NoDeviceView()
@@ -103,11 +110,12 @@ class MainWindow(QWidget):
         device_actions_layout.addWidget(self.mode_button)
         center_layout.addWidget(self.device_actions)
 
-        self.status_label = QLabel("Select a device and click Open device")
+        self.status_label = QLabel(messages.STATUS_SELECT_DEVICE)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet(get_status_label_style())
         bottom_layout.addWidget(self.status_label)
 
+        main_layout.addWidget(self.demo_notice_label)
         main_layout.addWidget(self.center_panel, 1)
         main_layout.addWidget(self.bottom_panel)
 
@@ -129,33 +137,41 @@ class MainWindow(QWidget):
 
     def _update_mode_ui(self):
         if self.app_mode is AppMode.DEMO:
-            self.mode_button.setText("Real devices")
+            self.mode_button.setText(messages.BUTTON_REAL_DEVICES)
+            self.demo_notice_label.setVisible(True)
             return
 
-        self.mode_button.setText("Demo mode")
+        self.mode_button.setText(messages.BUTTON_DEMO_MODE)
+        self.demo_notice_label.setVisible(False)
 
     def _handle_startup_scan(self):
         self._scan_devices()
 
     def _on_device_selected(self, index: int):
+        self.selected_device_index = None
+
         if self.card is not None:
             self.open_button.setEnabled(False)
-            self.status_label.setText("Close device panel before opening another device")
+            self.status_label.setText(messages.STATUS_CLOSE_PANEL_FIRST)
             return
 
         if index < 0 or index >= len(self.device_options):
             self.open_button.setEnabled(False)
-            self.status_label.setText("Select a device and click Open device")
+            self.status_label.setText(messages.STATUS_SELECT_DEVICE)
             return
 
         option = self.device_options[index]
         if not option.is_supported:
             self.open_button.setEnabled(False)
-            self.status_label.setText("This device is not supported yet")
+            self.status_label.setText(messages.STATUS_UNSUPPORTED_DEVICE)
             return
 
+        self.selected_device_index = index
         self.open_button.setEnabled(True)
-        self.status_label.setText("Supported device selected")
+        if self.app_mode is AppMode.DEMO:
+            self.status_label.setText(messages.STATUS_SIMULATED_DEVICE_SELECTED)
+        else:
+            self.status_label.setText(messages.STATUS_SUPPORTED_DEVICE_SELECTED)
 
     def _on_rescan_clicked(self):
         self._close_open_device()
@@ -164,6 +180,7 @@ class MainWindow(QWidget):
     def _scan_devices(self):
         self.driver = None
         self.state = None
+        self.selected_device_index = None
 
         try:
             self.device_options = self.device_service.scan_devices()
@@ -172,23 +189,31 @@ class MainWindow(QWidget):
             self.device_options = []
             self.scan_error = e
 
-        self.selector.device_list.clear()
+        device_list = self.selector.device_list
+        blocker = QSignalBlocker(device_list)
+        try:
+            device_list.clear()
 
-        for option in self.device_options:
-            self.selector.device_list.addItem(option.label)
+            for option in self.device_options:
+                device_list.addItem(option.label)
 
-        self.selector.device_list.setCurrentRow(0 if self.selector.device_list.count() else -1)
-        self.open_button.setEnabled(False)
+            device_list.setCurrentIndex(QModelIndex())
+            device_list.clearSelection()
+            device_list.clearFocus()
+        finally:
+            del blocker
+
+        self._on_device_selected(-1)
         self._update_center_view()
 
         if self.scan_error is not None:
-            self.status_label.setText(f"Device scan failed: {self.scan_error}")
+            self.status_label.setText(messages.scan_error_status(self.scan_error))
         elif self.device_options:
-            self.status_label.setText("Device list updated")
+            self.status_label.setText(messages.STATUS_SELECT_DEVICE)
         elif self.app_mode is AppMode.DEMO:
-            self.status_label.setText("No demo devices available")
+            self.status_label.setText(messages.STATUS_NO_DEMO_DEVICES)
         else:
-            self.status_label.setText("No Tascam devices found")
+            self.status_label.setText(messages.STATUS_NO_TASCAM_DEVICES)
 
     def _update_center_view(self):
         if self.scan_error is not None:
@@ -212,15 +237,15 @@ class MainWindow(QWidget):
 
     def _on_open_clicked(self):
         if self.card is not None:
-            self.status_label.setText("Device panel is already open")
+            self.status_label.setText(messages.STATUS_DEVICE_PANEL_ALREADY_OPEN)
             return
 
-        index = self.selector.device_list.currentRow()
-        if index < 0 or index >= len(self.device_options):
-            self.status_label.setText("Select a supported device first")
+        if self.selected_device_index is None:
+            self.status_label.setText(messages.STATUS_SELECT_SUPPORTED_DEVICE)
             return
 
         try:
+            index = self.selected_device_index
             option = self.device_options[index]
             self.driver = self.device_service.open_driver(option)
             self.state = self.driver.read_device_state()
@@ -230,13 +255,13 @@ class MainWindow(QWidget):
             self.card.show()
 
             self.open_button.setEnabled(False)
-            self.status_label.setText(f"{option.label} opened")
+            self.status_label.setText(messages.device_opened_status(option.label))
 
         except Exception as e:
             self.driver = None
             self.state = None
             self.card = None
-            self.status_label.setText(f"Open failed: {e}")
+            self.status_label.setText(messages.open_failed_status(e))
 
     def _on_mode_clicked(self):
         if self.app_mode is AppMode.REAL:
@@ -249,10 +274,8 @@ class MainWindow(QWidget):
         if self.driver is not None:
             result = QMessageBox.question(
                 self,
-                "Switch to Demo Mode",
-                "Changes made to your connected device have already been applied.\n"
-                "Demo mode will disconnect from the real device and open simulated devices instead.\n"
-                "Continue?",
+                messages.DIALOG_SWITCH_TO_DEMO_TITLE,
+                messages.DIALOG_SWITCH_TO_DEMO_TEXT,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -264,7 +287,7 @@ class MainWindow(QWidget):
         self.device_service = self._create_device_service(self.app_mode)
         self._update_mode_ui()
         self._scan_devices()
-        self.status_label.setText("Demo mode enabled")
+        self.status_label.setText(messages.STATUS_DEMO_ENABLED)
 
     def _switch_to_real_mode(self):
         self._close_open_device()
@@ -274,7 +297,7 @@ class MainWindow(QWidget):
         self._scan_devices()
 
         if self.device_options:
-            self.status_label.setText("Real device mode enabled")
+            self.status_label.setText(messages.STATUS_REAL_MODE_ENABLED)
 
     def _close_open_device(self):
         if self.card is not None:
@@ -291,14 +314,14 @@ class MainWindow(QWidget):
 
     def _ensure_driver(self):
         if self.driver is None:
-            self.status_label.setText("Device not opened")
+            self.status_label.setText(messages.STATUS_DEVICE_NOT_OPENED)
             return False
         return True
 
     def _on_card_closed(self):
         self.card = None
         self._on_device_selected(self.selector.device_list.currentRow())
-        self.status_label.setText("Device panel closed")
+        self.status_label.setText(messages.STATUS_DEVICE_PANEL_CLOSED)
 
     def closeEvent(self, event):
         self._close_open_device()

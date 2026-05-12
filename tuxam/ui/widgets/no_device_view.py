@@ -3,6 +3,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget
 
 from tuxam.ui.assets.assets_path import penguin
+from tuxam.ui import messages
 from tuxam.ui.styles import (
     get_button_style,
     get_empty_state_detail_style,
@@ -45,9 +46,9 @@ class NoDeviceView(QWidget):
         button_layout.setSpacing(10)
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.rescan_button = QPushButton("Rescan")
-        self.demo_button = QPushButton("Demo Mode")
-        self.quit_button = QPushButton("Quit")
+        self.rescan_button = QPushButton(messages.BUTTON_RESCAN)
+        self.demo_button = QPushButton(messages.BUTTON_DEMO_MODE_CTA)
+        self.quit_button = QPushButton(messages.BUTTON_QUIT)
 
         self.rescan_button.setStyleSheet(get_primary_button_style())
         for button in (self.demo_button, self.quit_button):
@@ -67,23 +68,21 @@ class NoDeviceView(QWidget):
         self.quit_button.clicked.connect(self.quit_requested.emit)
 
     def show_real_no_devices(self):
-        self.rescan_button.setText("Rescan")
-        self.title_label.setText("No Tascam device found")
-        self.detail_label.setText(
-            "Connect a Tascam USB interface and rescan, or open Demo Mode."
-        )
+        self.rescan_button.setText(messages.BUTTON_RESCAN)
+        self.title_label.setText(messages.EMPTY_NO_REAL_DEVICES_TITLE)
+        self.detail_label.setText(messages.EMPTY_NO_REAL_DEVICES_DETAIL)
         self.demo_button.setVisible(True)
 
     def show_no_demo_devices(self):
-        self.rescan_button.setText("Rescan")
-        self.title_label.setText("No demo devices available")
-        self.detail_label.setText("This app version does not provide any simulated devices.")
+        self.rescan_button.setText(messages.BUTTON_RESCAN)
+        self.title_label.setText(messages.EMPTY_NO_DEMO_DEVICES_TITLE)
+        self.detail_label.setText(messages.EMPTY_NO_DEMO_DEVICES_DETAIL)
         self.demo_button.setVisible(False)
 
     def show_scan_error(self, error):
-        self.rescan_button.setText("Try Again")
-        self.title_label.setText("Device scan failed")
-        self.detail_label.setText(f"Could not scan USB devices: {error}")
+        self.rescan_button.setText(messages.BUTTON_TRY_AGAIN)
+        self.title_label.setText(messages.EMPTY_SCAN_ERROR_TITLE)
+        self.detail_label.setText(messages.scan_error_detail(error))
         self.demo_button.setVisible(True)
 
     def resizeEvent(self, event):
