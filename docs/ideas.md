@@ -1,3 +1,97 @@
+## Work snapshot: 2026-05-13 21:04 CEST
+
+Planned commit:
+
+- `fix(ui): wire input controls to confirmed driver state`
+
+Current development context:
+
+- Active branch is `ui-experiments`
+- Local branch is ahead of `origin/ui-experiments` by 1 commit before this milestone is committed
+- This work is still experimental UI/device-panel cleanup and should stay on `ui-experiments`
+- `redesign` remains the stable development branch for useful UI work after it settles
+
+Done in this stage:
+
+- Fixed `MainWindow` open-failure cleanup so a partially opened driver transport is closed if reading initial device state or creating the card fails
+- Added regression coverage for open failure after a driver has already been returned by the device service
+- Wired US-4x4 input channel icons to the driver instead of toggling only local GUI state
+- Initialized US-4x4 input icons from the fresh state snapshot read when the device panel opens
+- Changed input clicks to call `set_and_confirm()` and update icons from the confirmed readback state
+- Kept the input icon unchanged and showed a warning if a driver write/readback fails
+- Added US-4x4 card tests for initial state, driver writes, confirmed readback, and failure handling
+- Kept `set_and_confirm()` because it is the useful write-then-readback operation; only its name may need clarification later
+
+Current state:
+
+- Opening a device now has safer cleanup around transport ownership
+- The first real US-4x4 control path is connected end-to-end: initial device state -> UI state -> driver write -> confirmed UI state
+- `MainWindow` still owns orchestration for opening a selected device and reading initial state
+- `US4x4Card` now owns input-channel interaction for an already-open driver
+- `MainWindow` remains the next maintenance pressure point after this functional fix
+
+Validation:
+
+- `.venv/bin/python -m compileall -q tuxam`
+- `.venv/bin/python -m unittest discover -v`
+
+Next reasonable steps:
+
+- Commit this functional milestone before visual or structural follow-up work
+- If desired, update the no-device penguin artwork as a separate UI polish commit
+- Extract a `DeviceSelectorView` to own `PenguinSelector`, device actions, selection clearing, and selector signals
+- Keep `MainWindow` focused on orchestration: scan, mode switch, open device, and view routing
+- Add a simple device-card factory or registry before adding a second supported device so `MainWindow` no longer hard-codes `US4x4Card`
+- Replace the direct `demo_notice_label` in `MainWindow` with a cleaned-up reusable `ModeBadge`, or remove `mode_badge.py` if the badge abstraction is not useful
+- Rename `set_and_confirm()` later if the current name stays confusing, for example to `write_and_read_feature_state()`
+
+## Work snapshot: 2026-05-12 18:33 CEST
+
+Latest commit:
+
+- `035fbe3 refactor(ui): clarify demo mode indicator and device selection`
+
+Current development context:
+
+- Active branch is `ui-experiments`
+- Local branch is ahead of `origin/ui-experiments` by 1 commit
+- Current work is still experimental UI cleanup and should stay on `ui-experiments`
+- `redesign` remains the stable development branch for useful UI work after it settles
+
+Done in this stage:
+
+- Added a persistent demo-mode notice so simulated devices are always visible
+- Kept real mode visually normal and hid the demo notice outside demo mode
+- Prevented device scan/startup from auto-selecting the first device
+- Fixed device selection so mouse and keyboard selection use the same row-change path
+- Blocked list selection signals while scan results are rebuilt
+- Added `tuxam/ui/messages.py` for shared user-facing UI text
+- Moved main-window and no-device view status/button text to the shared messages module
+- Improved selected-row styling in the device selector
+- Added demo-mode UI tests for startup scan, selection, and opening a selected demo device
+
+Current state:
+
+- Demo mode is clearer without changing the whole app theme
+- A user must explicitly select a device before `Open device` is enabled
+- Device list selection state is less fragile after rescans
+- User-facing text is no longer scattered only through `main_window.py`
+- `main_window.py` is still too large and remains the next maintenance pressure point
+
+Validation:
+
+- `.venv/bin/python -m compileall -q tuxam`
+- `.venv/bin/python -m unittest discover -v`
+
+Next reasonable steps:
+
+- Replace the direct `demo_notice_label` in `MainWindow` with a cleaned-up reusable `ModeBadge`, or remove `mode_badge.py` if the badge abstraction is not useful
+- Extract a `DeviceSelectorView` to own `PenguinSelector`, device actions, selection clearing, and selector signals
+- Keep `MainWindow` focused on orchestration: scan, mode switch, open device, and view routing
+- Add a simple device-card factory or registry so `MainWindow` no longer hard-codes `US4x4Card`
+- Wire `US4x4Card` controls to initial driver state and real driver writes
+- After those pieces are stable, decide whether to cherry-pick or merge the useful UI work back to `redesign`
+
 ## Work snapshot: 2026-05-12 00:31 CEST
 
 Latest commit:

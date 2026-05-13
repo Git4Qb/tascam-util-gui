@@ -1,8 +1,8 @@
 # tuxam/ui/widgets/us4x4_card.py
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QMessageBox, QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Signal
-from tuxam.devices.us_4x4.parameters import INPUT_CHANNEL
+from tuxam.devices.us_4x4.parameters import INPUT_CHANNEL, InputChannelState
 from tuxam.ui.widgets.input_icon import InputIcon
 from tuxam.ui.assets.assets_path import inputs
 from tuxam.ui.assets.icons.app_icon import get_app_icon
@@ -38,15 +38,41 @@ class US4x4Card(QWidget):
                 icon_size=80,
             )
             button.input_clicked.connect(self._on_input_clicked)
+            button.set_state(self._input_channel_enabled(index))
 
             inputs_layout.addWidget(button)
             self.input_icons.append(button)
 
+    def _input_channel_enabled(self, index: int) -> bool:
+        input_state = self.state.get("input_channel", [])
+        if index >= len(input_state):
+            return False
+
+        return input_state[index] is InputChannelState.ON
+
     def _on_input_clicked(self, index: int):
         button = self.input_icons[index]
-        new_state = not button.enabled_state
+        new_state = (
+            InputChannelState.OFF
+            if button.enabled_state
+            else InputChannelState.ON
+        )
 
-        button.set_state(new_state)
+        try:
+            confirmed_state = self.driver.set_and_confirm(
+                INPUT_CHANNEL,
+                new_state,
+                index,
+            )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Input Change Failed",
+                f"Could not change input {index + 1}: {e}",
+            )
+            return
+
+        button.set_state(confirmed_state is InputChannelState.ON)
 
     def closeEvent(self, event):
         self.closed.emit()

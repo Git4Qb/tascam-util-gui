@@ -258,9 +258,7 @@ class MainWindow(QWidget):
             self.status_label.setText(messages.device_opened_status(option.label))
 
         except Exception as e:
-            self.driver = None
-            self.state = None
-            self.card = None
+            self._close_open_device()
             self.status_label.setText(messages.open_failed_status(e))
 
     def _on_mode_clicked(self):
