@@ -28,9 +28,17 @@ class ReadFailingDriver:
         raise RuntimeError("state read failed")
 
 
-class ReadFailingDeviceService:
+class OpenableDriver:
     def __init__(self) -> None:
-        self.driver = ReadFailingDriver()
+        self.transport = ClosableTransport()
+
+    def read_device_state(self) -> dict:
+        return {}
+
+
+class ReadFailingDeviceService:
+    def __init__(self, driver=None) -> None:
+        self.driver = driver or ReadFailingDriver()
         self.option = DeviceOption(label="Fake Tascam US-4x4", is_supported=True)
 
     def scan_devices(self) -> list[DeviceOption]:
@@ -69,6 +77,29 @@ class MainWindowOpenFailureTests(unittest.TestCase):
             self.assertIsNone(window.state)
             self.assertIsNone(window.card)
             self.assertEqual(window.status_label.text(), "Open failed: state read failed")
+        finally:
+            window.close()
+
+    def test_closing_card_closes_open_driver_transport(self) -> None:
+        driver = OpenableDriver()
+        service = ReadFailingDeviceService(driver)
+        window = OpenFailureMainWindow(service)
+
+        try:
+            window._scan_devices()
+            window.selector.device_list.setCurrentRow(0)
+            window._on_open_clicked()
+
+            self.assertIs(window.driver, driver)
+            self.assertIsNotNone(window.card)
+
+            window.card.close()
+
+            self.assertTrue(driver.transport.closed)
+            self.assertIsNone(window.driver)
+            self.assertIsNone(window.state)
+            self.assertIsNone(window.card)
+            self.assertEqual(window.status_label.text(), "Device panel closed")
         finally:
             window.close()
 

@@ -297,18 +297,27 @@ class MainWindow(QWidget):
         if self.device_options:
             self.status_label.setText(messages.STATUS_REAL_MODE_ENABLED)
 
-    def _close_open_device(self):
-        if self.card is not None:
-            self.card.close()
-            self.card = None
+    def _close_open_device(self, close_card: bool = True):
+        card = self.card
+        driver = self.driver
 
-        if self.driver is not None:
-            transport = getattr(self.driver, "transport", None)
-            if transport is not None:
-                transport.close()
-
+        self.card = None
         self.driver = None
         self.state = None
+
+        if card is not None:
+            try:
+                card.closed.disconnect(self._on_card_closed)
+            except RuntimeError:
+                pass
+
+            if close_card:
+                card.close()
+
+        if driver is not None:
+            transport = getattr(driver, "transport", None)
+            if transport is not None:
+                transport.close()
 
     def _ensure_driver(self):
         if self.driver is None:
@@ -317,7 +326,7 @@ class MainWindow(QWidget):
         return True
 
     def _on_card_closed(self):
-        self.card = None
+        self._close_open_device(close_card=False)
         self._on_device_selected(self.selector.device_list.currentRow())
         self.status_label.setText(messages.STATUS_DEVICE_PANEL_CLOSED)
 
