@@ -43,10 +43,15 @@
   - `refactor(ui): redesign device selector and reorganize UI assets`
   - `chore(deps): update project requirements for redesign branch`
 
-## Communication Preferences
+## Collaboration Workflow
 
-- At the start of each Codex session, review `docs/ideas.md` to keep current project plans and active design direction in mind
-- Briefly summarize what changed after each task
-- Explain important architectural decisions briefly
-- Point out when a pattern or workflow is good practice
-- Warn when a solution may create technical debt
+- Work on one agreed task at a time; complete pending work before starting another task.
+- When asked for the next step, recommend one concrete action.
+- Explain the project direction and rationale before selecting a task; keep active work focused on the agreed scope.
+- Treat questions as requests for information, not permission to modify files.
+- Modify files only when explicitly requested.
+- Review `docs/ideas.md` at the start of a session for project context.
+- Summarize changes and validation results after each task.
+- Explain significant architectural decisions and identify technical debt.
+- Keep public documentation limited to relevant technical and contributor information.
+- If `.local/AGENTS.md` exists, read it for local collaboration preferences. Do not commit its contents.

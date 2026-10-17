@@ -3,3 +3,6 @@ __pycache__/
 .idea/
 *.zip
 .not_used/
+
+# Local development notes and preferences
+.local/
